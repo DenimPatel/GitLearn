@@ -1,0 +1,5 @@
+{
+  "name": "GitLearn: Interactive Git Tutorial",
+  "description": "An interactive, curriculum-based web application to learn version control with Git. Users can learn concepts one at a time through guided lessons with graphical visualizations of the repository state.",
+  "requestFramePermissions": []
+}
