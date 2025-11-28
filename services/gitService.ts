@@ -5,9 +5,14 @@ import { produce } from 'immer';
 const createCommitId = () => Math.random().toString(36).substring(2, 8);
 
 export const gitReducer = (state: RepoState, action: Action): { newState: RepoState, message: string } => {
+  // Handle RESET separately as it replaces the entire state
+  if (action.type === 'RESET') {
+     return { newState: action.payload, message: 'State has been reset.' };
+  }
+
   let message = 'Command executed successfully.';
 
-  const newState = produce(state, draft => {
+  const newState = produce(state, (draft) => {
     switch (action.type) {
       case 'INIT':
         if (draft.isInitialized) {
@@ -145,9 +150,6 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
 
         message = `Merged branch '${sourceBranchName}' into '${targetBranchName}'.`;
         break;
-
-      case 'RESET':
-        return { newState: action.payload, message: 'State has been reset.' };
 
       default:
         message = `Unknown command: ${action.type}`;

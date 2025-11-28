@@ -1,12 +1,12 @@
 
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { CurriculumPanel } from './components/CurriculumPanel';
 import { LessonView } from './components/LessonView';
 import { GitVisualization } from './components/GitVisualization';
 import { PlaygroundView } from './components/PlaygroundView';
 import { Header } from './components/Header';
 import { LESSONS } from './constants';
-import type { RepoState, Command, File } from './types';
+import type { RepoState, Command } from './types';
 import { gitReducer } from './services/gitService';
 
 const initialRepoState: RepoState = {

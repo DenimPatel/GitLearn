@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { RepoState, Command, File } from '../types';
+import type { RepoState, Command } from '../types';
 import { CommandButton } from './CommandButton';
 import { CommitGraph, FilePill, getFileStatus } from './GitVisualization';
 
