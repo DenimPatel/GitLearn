@@ -59,11 +59,20 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
              <CommandButton command="OPEN_PR" onClick={(p) => onCommand('OPEN_PR', p)} requiresPayload payloadLabel="PR title" payloadDefault="Add awesome feature" isGitCommand={false} commandPreview={(p) => `On GitHub: Compare & pull request → "${p || '<title>'}"`} className="bg-violet-500/10 text-violet-300 border border-violet-500/30 hover:bg-violet-500/20">open pull request</CommandButton>
 
              <CommandButton command="MERGE_PR" onClick={() => onCommand('MERGE_PR')} isGitCommand={false} commandPreview={() => 'On GitHub: click "Merge pull request"'} className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20">merge pull request</CommandButton>
+
+             <div className="border-t border-git-border my-1"></div>
+             <h3 className="text-xs uppercase tracking-wider font-semibold text-git-text-secondary">Inspect</h3>
+
+             <CommandButton command="STATUS" onClick={() => onCommand('STATUS')} commandPreview={() => 'git status'} className="bg-slate-500/10 text-slate-300 border border-slate-500/30 hover:bg-slate-500/20">status</CommandButton>
+
+             <CommandButton command="LOG" onClick={() => onCommand('LOG')} commandPreview={() => 'git log'} className="bg-slate-500/10 text-slate-300 border border-slate-500/30 hover:bg-slate-500/20">log</CommandButton>
+
+             <CommandButton command="DIFF" onClick={() => onCommand('DIFF')} commandPreview={() => 'git diff'} className="bg-slate-500/10 text-slate-300 border border-slate-500/30 hover:bg-slate-500/20">diff</CommandButton>
         </div>
 
         <div className="mt-auto pt-4 border-t border-git-border">
              {feedbackMessage && (
-                <div className="font-mono text-xs bg-git-bg p-3 rounded-md text-git-text-secondary border-l-2 border-git-accent break-words">
+                <div className="font-mono text-xs bg-git-bg p-3 rounded-md text-git-text-secondary border-l-2 border-git-accent break-words whitespace-pre-wrap max-h-64 overflow-y-auto">
                   <span className="text-git-accent font-bold mr-1">$</span>{feedbackMessage}
                 </div>
               )}

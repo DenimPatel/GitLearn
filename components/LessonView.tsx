@@ -27,6 +27,9 @@ export const LessonView: React.FC<LessonViewProps> = ({ lesson, onCommand, isCom
     PULL: <CommandButton command="PULL" onClick={(p) => onCommand('PULL', p)} requiresPayload payloadLabel="branch-name" payloadDefault="main" commandPreview={(p) => `git pull origin ${p || '<branch>'}`} className="bg-sky-500/20 text-sky-300 border border-sky-500/50 hover:bg-sky-500/30">pull origin</CommandButton>,
     OPEN_PR: <CommandButton command="OPEN_PR" onClick={(p) => onCommand('OPEN_PR', p)} requiresPayload payloadLabel="PR title" payloadDefault="Add awesome feature" isGitCommand={false} commandPreview={(p) => `On GitHub: Compare & pull request → "${p || '<title>'}"`} className="bg-violet-500/20 text-violet-300 border border-violet-500/50 hover:bg-violet-500/30">open pull request</CommandButton>,
     MERGE_PR: <CommandButton command="MERGE_PR" onClick={() => onCommand('MERGE_PR')} isGitCommand={false} commandPreview={() => 'On GitHub: click "Merge pull request"'} className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/30">merge pull request</CommandButton>,
+    STATUS: <CommandButton command="STATUS" onClick={() => onCommand('STATUS')} commandPreview={() => 'git status'} className="bg-slate-500/20 text-slate-300 border border-slate-500/50 hover:bg-slate-500/30">status</CommandButton>,
+    LOG: <CommandButton command="LOG" onClick={() => onCommand('LOG')} commandPreview={() => 'git log'} className="bg-slate-500/20 text-slate-300 border border-slate-500/50 hover:bg-slate-500/30">log</CommandButton>,
+    DIFF: <CommandButton command="DIFF" onClick={() => onCommand('DIFF')} commandPreview={() => 'git diff'} className="bg-slate-500/20 text-slate-300 border border-slate-500/50 hover:bg-slate-500/30">diff</CommandButton>,
     RESET: <></> // Not a user command
   };
 
@@ -46,7 +49,7 @@ export const LessonView: React.FC<LessonViewProps> = ({ lesson, onCommand, isCom
       
       <div className="mt-6 pt-4 border-t border-git-border">
          {feedbackMessage && (
-            <div className="font-mono text-sm bg-git-bg p-3 rounded-md text-git-text-secondary mb-4">
+            <div className="font-mono text-sm bg-git-bg p-3 rounded-md text-git-text-secondary mb-4 whitespace-pre-wrap max-h-64 overflow-y-auto">
               <span className="text-git-accent mr-2">$</span>{feedbackMessage}
             </div>
           )}

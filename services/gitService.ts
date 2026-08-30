@@ -21,6 +21,24 @@ const collectCommitChain = (tipId: string, commits: Record<string, Commit>): str
   return chain;
 };
 
+/** A minimal line-based diff: skips matching lines at the start and end, and shows everything in between as removed/added. Good enough for this simulator's simple content mutations. */
+const diffLines = (oldContent: string, newContent: string): string[] => {
+  const oldLines = oldContent.split('\n');
+  const newLines = newContent.split('\n');
+  let start = 0;
+  while (start < oldLines.length && start < newLines.length && oldLines[start] === newLines[start]) start++;
+  let endOld = oldLines.length - 1;
+  let endNew = newLines.length - 1;
+  while (endOld >= start && endNew >= start && oldLines[endOld] === newLines[endNew]) {
+    endOld--;
+    endNew--;
+  }
+  const out: string[] = [];
+  oldLines.slice(start, endOld + 1).forEach(l => out.push(`- ${l}`));
+  newLines.slice(start, endNew + 1).forEach(l => out.push(`+ ${l}`));
+  return out;
+};
+
 export const gitReducer = (state: RepoState, action: Action): { newState: RepoState, message: string } => {
   // Handle RESET separately as it replaces the entire state
   if (action.type === 'RESET') {
@@ -30,6 +48,7 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
   let message = 'Command executed successfully.';
 
   const newState = produce(state, (draft) => {
+    draft.commandsRun.push(action.type);
     switch (action.type) {
       case 'INIT':
         if (draft.isInitialized) {
@@ -281,6 +300,91 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         draft.remote.branches[targetPr.targetBranch] = mergeCommitId;
         targetPr.status = 'merged';
         message = `Merged pull request ${targetPr.id} on GitHub. Run 'git pull origin ${targetPr.targetBranch}' to sync locally.`;
+        break;
+      }
+
+      case 'STATUS': {
+        if (!draft.isInitialized) {
+          message = 'fatal: not a git repository (or any of the parent directories): .git';
+          break;
+        }
+        const headCommitId = draft.branches[draft.HEAD.name];
+        const lastCommitFiles = headCommitId ? draft.commits[headCommitId].files : {};
+        const staged: string[] = [];
+        const modified: string[] = [];
+        const untracked: string[] = [];
+        const allNames = new Set([...Object.keys(draft.workingDirectory), ...Object.keys(draft.stagingArea)]);
+        allNames.forEach(name => {
+          const wd = draft.workingDirectory[name];
+          const staging = draft.stagingArea[name];
+          const committed = lastCommitFiles[name];
+          if (staging && staging.content !== committed?.content) staged.push(name);
+          if (wd && staging && wd.content !== staging.content) modified.push(name);
+          else if (wd && !staging && committed && wd.content !== committed.content) modified.push(name);
+          if (wd && !committed && !staging) untracked.push(name);
+        });
+        const lines: string[] = [`On branch ${draft.HEAD.name}`];
+        if (staged.length === 0 && modified.length === 0 && untracked.length === 0) {
+          lines.push('nothing to commit, working tree clean');
+        } else {
+          if (staged.length > 0) {
+            lines.push('Changes to be committed:');
+            staged.forEach(f => lines.push(`  staged:     ${f}`));
+          }
+          if (modified.length > 0) {
+            lines.push('Changes not staged for commit:');
+            modified.forEach(f => lines.push(`  modified:   ${f}`));
+          }
+          if (untracked.length > 0) {
+            lines.push('Untracked files:');
+            untracked.forEach(f => lines.push(`  ${f}`));
+          }
+        }
+        message = lines.join('\n');
+        break;
+      }
+
+      case 'LOG': {
+        if (!draft.isInitialized) {
+          message = 'fatal: not a git repository (or any of the parent directories): .git';
+          break;
+        }
+        let cursor: string | undefined = draft.branches[draft.HEAD.name];
+        if (!cursor) {
+          message = "fatal: your current branch does not have any commits yet";
+          break;
+        }
+        const lines: string[] = [];
+        let isTip = true;
+        while (cursor) {
+          const commit: Commit | undefined = draft.commits[cursor];
+          if (!commit) break;
+          lines.push(`commit ${commit.id}${isTip ? ` (HEAD -> ${draft.HEAD.name})` : ''}`);
+          lines.push(`    ${commit.message}`);
+          lines.push('');
+          isTip = false;
+          cursor = commit.parents[0];
+        }
+        message = lines.join('\n').trimEnd();
+        break;
+      }
+
+      case 'DIFF': {
+        if (!draft.isInitialized) {
+          message = 'fatal: not a git repository (or any of the parent directories): .git';
+          break;
+        }
+        const headCommitId = draft.branches[draft.HEAD.name];
+        const lastCommitFiles = headCommitId ? draft.commits[headCommitId].files : {};
+        const lines: string[] = [];
+        Object.keys(draft.workingDirectory).forEach(name => {
+          const wdContent = draft.workingDirectory[name].content;
+          const baseline = draft.stagingArea[name]?.content ?? lastCommitFiles[name]?.content;
+          if (baseline === undefined || baseline === wdContent) return;
+          lines.push(`diff --git a/${name} b/${name}`, `--- a/${name}`, `+++ b/${name}`);
+          lines.push(...diffLines(baseline, wdContent));
+        });
+        message = lines.length > 0 ? lines.join('\n') : 'No changes.';
         break;
       }
 

@@ -167,4 +167,22 @@ export const LESSONS: Lesson[] = [
       return state.branches['main'] === state.remote.branches['main'];
     },
   },
+  {
+    id: 'inspect-status-log-diff',
+    title: '12. Inspect Your Repo: status, log & diff',
+    explanation: `Before you commit, push, or panic, check what's actually going on. These three read-only commands are the ones you'll run more than any other:\n\n'git status' - what's staged, what's modified, what's untracked.\n'git diff' - the exact line-by-line changes you haven't staged yet.\n'git log' - the commit history of your current branch.\n\nA file has already been modified for you below. Run all three commands to see what they report, then stage and commit the change.`,
+    allowedCommands: ['STATUS', 'DIFF', 'MODIFY_FILE', 'ADD', 'COMMIT', 'LOG'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+    ],
+    completionCondition: (state) =>
+      state.commandsRun.includes('STATUS') &&
+      state.commandsRun.includes('DIFF') &&
+      state.commandsRun.includes('LOG') &&
+      Object.keys(state.commits).length > 1,
+  },
 ];

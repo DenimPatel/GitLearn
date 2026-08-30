@@ -2,6 +2,7 @@
 export type Command =
   | 'INIT' | 'CREATE_FILE' | 'MODIFY_FILE' | 'ADD' | 'COMMIT' | 'BRANCH' | 'CHECKOUT' | 'MERGE'
   | 'REMOTE_ADD' | 'PUSH' | 'PULL' | 'OPEN_PR' | 'MERGE_PR'
+  | 'STATUS' | 'LOG' | 'DIFF'
   | 'RESET';
 
 export interface Action {
@@ -50,6 +51,8 @@ export interface RepoState {
   branches: Record<string, string>; // branch name -> commit id
   HEAD: Head;
   remote: RemoteState;
+  /** Every command type dispatched so far, in order. Lets lessons require a read-only command (e.g. STATUS) actually be run, since those don't otherwise change any state a completionCondition could observe. */
+  commandsRun: Command[];
 }
 
 export interface Lesson {

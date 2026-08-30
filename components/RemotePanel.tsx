@@ -24,6 +24,7 @@ export const RemotePanel: React.FC<RemotePanelProps> = ({ remote }) => {
     branches: remote.branches,
     HEAD: { type: 'branch', name: '' },
     remote: { url: null, branches: {}, commits: {}, pullRequests: {} },
+    commandsRun: [],
   };
 
   return (
