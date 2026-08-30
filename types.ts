@@ -6,6 +6,7 @@ export type Command =
   | 'DISCARD' | 'UNSTAGE' | 'AMEND' | 'REVERT'
   | 'IGNORE'
   | 'RESOLVE'
+  | 'CLONE'
   | 'RESET';
 
 export interface Action {

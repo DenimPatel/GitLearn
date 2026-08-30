@@ -607,6 +607,24 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         break;
       }
 
+      case 'CLONE': {
+        if (!draft.remote.url || Object.keys(draft.remote.branches).length === 0) {
+          message = 'Nothing to clone yet - push at least one branch to origin first.';
+          break;
+        }
+        draft.isInitialized = true;
+        draft.commits = { ...draft.remote.commits };
+        draft.branches = { ...draft.remote.branches };
+        const defaultBranch = draft.branches['main'] ? 'main' : Object.keys(draft.branches)[0];
+        draft.HEAD = { type: 'branch', name: defaultBranch };
+        const tipId = draft.branches[defaultBranch];
+        const tipFiles = tipId ? draft.commits[tipId].files : {};
+        draft.workingDirectory = { ...tipFiles };
+        draft.stagingArea = {};
+        message = `Cloned '${draft.remote.url}' - exactly what a teammate would get running 'git clone' for the first time. Checked out '${defaultBranch}'.`;
+        break;
+      }
+
       default:
         message = `Unknown command: ${action.type}`;
         break;

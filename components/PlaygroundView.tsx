@@ -89,6 +89,11 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
              <h3 className="text-xs uppercase tracking-wider font-semibold text-git-text-secondary">Merge Conflicts</h3>
 
              <CommandButton command="RESOLVE" onClick={(p) => onCommand('RESOLVE', p)} requiresPayload payloadLabel="'ours' or 'theirs'" payloadDefault="theirs" isGitCommand={false} commandPreview={(p) => `(edit the file, keeping '${p || "ours/theirs"}'s version)`} className="bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20">resolve conflict</CommandButton>
+
+             <div className="border-t border-git-border my-1"></div>
+             <h3 className="text-xs uppercase tracking-wider font-semibold text-git-text-secondary">Join a Project</h3>
+
+             <CommandButton command="CLONE" onClick={() => onCommand('CLONE')} commandPreview={() => 'git clone <url>'} className="bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20">clone</CommandButton>
         </div>
 
         <div className="mt-auto pt-4 border-t border-git-border">

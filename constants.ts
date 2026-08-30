@@ -87,8 +87,8 @@ export const LESSONS: Lesson[] = [
   {
     id: 'merge',
     title: '8. Merge a Branch',
-    explanation: `Merging unites two branches. You're on 'main', and 'feature' has new work. Let's merge 'feature' into 'main'.\n\nThis creates a new 'merge commit' that has two parents, tying the histories together.`,
-    allowedCommands: ['MERGE'],
+    explanation: `Merging unites two branches. 'feature' has new work that 'main' doesn't. First switch back to 'main', then merge 'feature' into it.\n\nThis creates a new 'merge commit' that has two parents, tying the histories together.`,
+    allowedCommands: ['CHECKOUT', 'MERGE'],
     setupCommands: [
        { type: 'INIT' },
        { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
@@ -234,23 +234,13 @@ export const LESSONS: Lesson[] = [
   {
     id: 'merge-conflict',
     title: '16. Resolve a Merge Conflict',
-    explanation: `Here's the scenario every beginner dreads: 'main' and 'feature' both changed 'index.html' since they diverged. Merge them and git can't automatically pick a winner.\n\nRun 'git merge feature'. Instead of a clean merge commit, git stops and marks 'index.html' as conflicted, inserting '<<<<<<<', '=======', and '>>>>>>>' markers around both versions right in the file. Check 'git status' - it lists "unmerged paths" until this is fixed.\n\nIn a real editor you'd delete the markers and keep (or blend) the content you want. Here, resolve it by choosing 'ours' (main's version) or 'theirs' (feature's version) - then commit to finish the merge.`,
-    allowedCommands: ['STATUS', 'MERGE', 'RESOLVE', 'COMMIT'],
+    explanation: `Here's the scenario every beginner dreads: two branches change the same line of the same file, and git can't automatically pick a winner.\n\nMake sure you're on 'main', then branch off 'hotfix' and commit a change on it. Switch back to 'main' and commit a *different* change to the same file. Now merge 'hotfix' into 'main'.\n\nInstead of a clean merge commit, git stops and marks 'index.html' as conflicted, inserting '<<<<<<<', '=======', and '>>>>>>>' markers around both versions right in the file. Check 'git status' - it lists "unmerged paths" until this is fixed.\n\nIn a real editor you'd delete the markers and keep (or blend) the content you want. Here, resolve it by choosing 'ours' (main's version) or 'theirs' (hotfix's version) - then commit to finish the merge.`,
+    allowedCommands: ['CHECKOUT', 'BRANCH', 'MODIFY_FILE', 'ADD', 'COMMIT', 'STATUS', 'MERGE', 'RESOLVE'],
     setupCommands: [
       { type: 'INIT' },
       { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
       { type: 'ADD', payload: 'index.html' },
       { type: 'COMMIT', payload: 'Initial commit' },
-      { type: 'BRANCH', payload: 'feature' },
-      { type: 'CHECKOUT', payload: 'feature' },
-      { type: 'MODIFY_FILE', payload: 'index.html' },
-      { type: 'ADD', payload: 'index.html' },
-      { type: 'COMMIT', payload: 'Feature change' },
-      { type: 'CHECKOUT', payload: 'main' },
-      { type: 'MODIFY_FILE', payload: 'index.html' },
-      { type: 'MODIFY_FILE', payload: 'index.html' },
-      { type: 'ADD', payload: 'index.html' },
-      { type: 'COMMIT', payload: 'Main change' },
     ],
     completionCondition: (state) => {
       const mainTip = state.branches['main'];
@@ -258,5 +248,27 @@ export const LESSONS: Lesson[] = [
       const commit = state.commits[mainTip];
       return !state.mergeInProgress && !!commit && commit.parents.length > 1;
     },
+  },
+  {
+    id: 'clone',
+    title: '17. Clone: How a Teammate Joins the Project',
+    explanation: `Every lesson so far assumed YOU created this repo with 'git init'. Most of the time on GitHub, though, you're joining a project someone else already started - and for that you don't init, you 'git clone <url>'.\n\nCloning downloads the entire repository - every commit, every branch - from GitHub in one step, ready to work in immediately. Run it now to see exactly what a new teammate would get the moment they clone this project, then check the log.`,
+    allowedCommands: ['CLONE', 'LOG', 'STATUS'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+      { type: 'REMOTE_ADD', payload: 'https://github.com/you/gitlearn-demo.git' },
+      { type: 'PUSH', payload: 'main' },
+      { type: 'BRANCH', payload: 'feature' },
+      { type: 'CHECKOUT', payload: 'feature' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Add feature' },
+      { type: 'PUSH', payload: 'feature' },
+    ],
+    completionCondition: (state) =>
+      state.commandsRun.includes('CLONE') && state.branches['main'] === state.remote.branches['main'],
   },
 ];
