@@ -231,4 +231,32 @@ export const LESSONS: Lesson[] = [
       return !!headFiles['.gitignore'] && state.ignoredPatterns.includes('*.log');
     },
   },
+  {
+    id: 'merge-conflict',
+    title: '16. Resolve a Merge Conflict',
+    explanation: `Here's the scenario every beginner dreads: 'main' and 'feature' both changed 'index.html' since they diverged. Merge them and git can't automatically pick a winner.\n\nRun 'git merge feature'. Instead of a clean merge commit, git stops and marks 'index.html' as conflicted, inserting '<<<<<<<', '=======', and '>>>>>>>' markers around both versions right in the file. Check 'git status' - it lists "unmerged paths" until this is fixed.\n\nIn a real editor you'd delete the markers and keep (or blend) the content you want. Here, resolve it by choosing 'ours' (main's version) or 'theirs' (feature's version) - then commit to finish the merge.`,
+    allowedCommands: ['STATUS', 'MERGE', 'RESOLVE', 'COMMIT'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+      { type: 'BRANCH', payload: 'feature' },
+      { type: 'CHECKOUT', payload: 'feature' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Feature change' },
+      { type: 'CHECKOUT', payload: 'main' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Main change' },
+    ],
+    completionCondition: (state) => {
+      const mainTip = state.branches['main'];
+      if (!mainTip) return false;
+      const commit = state.commits[mainTip];
+      return !state.mergeInProgress && !!commit && commit.parents.length > 1;
+    },
+  },
 ];

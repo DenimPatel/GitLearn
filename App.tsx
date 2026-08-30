@@ -19,6 +19,7 @@ const initialRepoState: RepoState = {
   remote: { url: null, branches: {}, commits: {}, pullRequests: {} },
   commandsRun: [],
   ignoredPatterns: [],
+  mergeInProgress: null,
 };
 
 type ViewMode = 'tutorial' | 'playground';

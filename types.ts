@@ -5,6 +5,7 @@ export type Command =
   | 'STATUS' | 'LOG' | 'DIFF'
   | 'DISCARD' | 'UNSTAGE' | 'AMEND' | 'REVERT'
   | 'IGNORE'
+  | 'RESOLVE'
   | 'RESET';
 
 export interface Action {
@@ -45,6 +46,15 @@ export interface RemoteState {
   pullRequests: Record<string, PullRequest>;
 }
 
+/** Set while a MERGE has stopped on a conflict, waiting for the user to resolve it and commit. */
+export interface MergeInProgress {
+  sourceBranch: string;
+  targetBranch: string;
+  sourceCommitId: string;
+  targetCommitId: string;
+  conflictedFiles: string[];
+}
+
 export interface RepoState {
   isInitialized: boolean;
   workingDirectory: Record<string, File>;
@@ -57,6 +67,8 @@ export interface RepoState {
   commandsRun: Command[];
   /** Patterns from .gitignore (e.g. "*.log", "node_modules/"). Matching files are hidden from status/untracked listings and refused by ADD. */
   ignoredPatterns: string[];
+  /** Non-null while a merge is stopped on a conflict, waiting for RESOLVE + COMMIT. */
+  mergeInProgress: MergeInProgress | null;
 }
 
 export interface Lesson {

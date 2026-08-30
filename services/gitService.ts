@@ -21,6 +21,21 @@ const collectCommitChain = (tipId: string, commits: Record<string, Commit>): str
   return chain;
 };
 
+/** Finds a commit both tips descend from, by walking outward from `bId` until it hits an ancestor of `aId`. Not guaranteed to be the *lowest* common ancestor in exotic histories, but correct for the simple branch/merge shapes this simulator builds. */
+const findMergeBase = (aId: string, bId: string, commits: Record<string, Commit>): string | null => {
+  const ancestorsOfA = new Set(collectCommitChain(aId, commits));
+  const stack = [bId];
+  const seen = new Set<string>();
+  while (stack.length > 0) {
+    const id = stack.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (ancestorsOfA.has(id)) return id;
+    commits[id]?.parents.forEach(parentId => stack.push(parentId));
+  }
+  return null;
+};
+
 /** A simplified .gitignore matcher: exact names, "*.ext" suffix wildcards, and "dir/" prefix patterns. Not full glob semantics, but covers the common beginner cases. */
 export const isIgnored = (fileName: string, patterns: string[]): boolean =>
   patterns.some(pattern => {
@@ -101,14 +116,41 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         }
         break;
 
-      case 'COMMIT':
+      case 'COMMIT': {
+        if (draft.mergeInProgress) {
+          const { sourceBranch, targetBranch, sourceCommitId, targetCommitId, conflictedFiles } = draft.mergeInProgress;
+          const unresolved = conflictedFiles.filter(
+            name => !draft.stagingArea[name] || draft.stagingArea[name].content.includes('<<<<<<<')
+          );
+          if (unresolved.length > 0) {
+            message = `error: you have not concluded your merge (MERGE_HEAD exists). Resolve conflicts in ${unresolved.join(', ')} and stage them before committing.`;
+            break;
+          }
+          const sourceFiles = draft.commits[sourceCommitId].files;
+          const targetFiles = draft.commits[targetCommitId].files;
+          const mergedFiles = { ...targetFiles, ...sourceFiles, ...draft.stagingArea };
+          const mergeCommitId = createCommitId();
+          draft.commits[mergeCommitId] = {
+            id: mergeCommitId,
+            parents: [targetCommitId, sourceCommitId],
+            message: action.payload || `Merge branch '${sourceBranch}' into '${targetBranch}'`,
+            files: mergedFiles,
+          };
+          draft.branches[targetBranch] = mergeCommitId;
+          draft.stagingArea = {};
+          Object.keys(mergedFiles).forEach(name => { draft.workingDirectory[name] = mergedFiles[name]; });
+          draft.mergeInProgress = null;
+          message = `Merge completed: created merge commit [${mergeCommitId}].`;
+          break;
+        }
+
         if (Object.keys(draft.stagingArea).length === 0) {
           message = 'Nothing to commit, staging area is empty.';
           break;
         }
         const commitId = createCommitId();
         const parentCommitId = draft.branches[draft.HEAD.name] || null;
-        
+
         const parentFiles = parentCommitId ? draft.commits[parentCommitId].files : {};
         const newCommitFiles = { ...parentFiles, ...draft.stagingArea };
 
@@ -122,14 +164,15 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         draft.commits[commitId] = newCommit;
         draft.branches[draft.HEAD.name] = commitId;
         draft.stagingArea = {};
-        
+
         // Update working directory files to reflect committed state
         Object.keys(newCommit.files).forEach(name => {
             draft.workingDirectory[name] = newCommit.files[name];
         });
-        
+
         message = `Committed changes with ID [${commitId}].`;
         break;
+      }
 
       case 'BRANCH':
         const newBranchName: string = action.payload || 'new-branch';
@@ -156,7 +199,7 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         }
         break;
       
-      case 'MERGE':
+      case 'MERGE': {
         const sourceBranchName: string = action.payload;
         if (!draft.branches[sourceBranchName]) {
           message = `Branch '${sourceBranchName}' not found.`;
@@ -168,6 +211,10 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
           message = 'Cannot merge a branch into itself.';
           break;
         }
+        if (draft.mergeInProgress) {
+          message = `A merge is already in progress. Resolve it and commit before starting another.`;
+          break;
+        }
 
         const sourceCommitId = draft.branches[sourceBranchName];
         const targetCommitId = draft.branches[targetBranchName];
@@ -176,11 +223,46 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
             message = `Branch '${targetBranchName}' is already up to date with '${sourceBranchName}'.`;
             break;
         }
-        
-        // This simplified merge assumes no conflicts and source branch's file versions take precedence.
+
         const sourceCommitFiles = draft.commits[sourceCommitId].files;
         const targetCommitFiles = draft.commits[targetCommitId].files;
-        const mergedFiles = { ...targetCommitFiles, ...sourceCommitFiles };
+        const mergeBaseId = findMergeBase(sourceCommitId, targetCommitId, draft.commits);
+        const baseFiles = mergeBaseId ? draft.commits[mergeBaseId].files : {};
+
+        const allNames = new Set([...Object.keys(sourceCommitFiles), ...Object.keys(targetCommitFiles)]);
+        const mergedFiles: Record<string, File> = {};
+        const conflictedFiles: string[] = [];
+        allNames.forEach(name => {
+          const sourceContent = sourceCommitFiles[name]?.content;
+          const targetContent = targetCommitFiles[name]?.content;
+          const baseContent = baseFiles[name]?.content;
+          if (sourceContent === targetContent) {
+            mergedFiles[name] = targetCommitFiles[name] ?? sourceCommitFiles[name];
+          } else if (targetContent === baseContent) {
+            // target unchanged since the common ancestor -> take source's version
+            mergedFiles[name] = sourceCommitFiles[name];
+          } else if (sourceContent === baseContent) {
+            // source unchanged since the common ancestor -> keep target's version
+            mergedFiles[name] = targetCommitFiles[name];
+          } else {
+            // both branches changed this file differently since the common ancestor
+            conflictedFiles.push(name);
+            mergedFiles[name] = {
+              name,
+              content: `<<<<<<< HEAD (${targetBranchName})\n${targetContent ?? ''}\n=======\n${sourceContent ?? ''}\n>>>>>>> ${sourceBranchName}`,
+            };
+          }
+        });
+
+        if (conflictedFiles.length > 0) {
+          draft.mergeInProgress = { sourceBranch: sourceBranchName, targetBranch: targetBranchName, sourceCommitId, targetCommitId, conflictedFiles };
+          Object.entries(mergedFiles).forEach(([name, file]) => {
+            draft.workingDirectory[name] = file;
+            if (!conflictedFiles.includes(name)) draft.stagingArea[name] = file;
+          });
+          message = `Auto-merging non-conflicting files... CONFLICT (content): Merge conflict in ${conflictedFiles.join(', ')}. Resolve it, then 'git add' and 'git commit' to finish the merge.`;
+          break;
+        }
 
         const mergeCommitId = createCommitId();
         const mergeCommit: Commit = {
@@ -197,6 +279,7 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
 
         message = `Merged branch '${sourceBranchName}' into '${targetBranchName}'.`;
         break;
+      }
 
       case 'REMOTE_ADD': {
         const url: string = action.payload || 'https://github.com/you/your-repo.git';
@@ -326,6 +409,7 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         const untracked: string[] = [];
         const allNames = new Set([...Object.keys(draft.workingDirectory), ...Object.keys(draft.stagingArea)]);
         allNames.forEach(name => {
+          if (draft.mergeInProgress?.conflictedFiles.includes(name)) return; // already listed under "Unmerged paths"
           const wd = draft.workingDirectory[name];
           const staging = draft.stagingArea[name];
           const committed = lastCommitFiles[name];
@@ -335,7 +419,13 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
           if (wd && !committed && !staging && !isIgnored(name, draft.ignoredPatterns)) untracked.push(name);
         });
         const lines: string[] = [`On branch ${draft.HEAD.name}`];
-        if (staged.length === 0 && modified.length === 0 && untracked.length === 0) {
+        if (draft.mergeInProgress) {
+          lines.push('You have unmerged paths.');
+          lines.push('  (fix conflicts and run "git commit" to conclude merge)');
+          lines.push('Unmerged paths:');
+          draft.mergeInProgress.conflictedFiles.forEach(f => lines.push(`  both modified:   ${f}`));
+        }
+        if (staged.length === 0 && modified.length === 0 && untracked.length === 0 && !draft.mergeInProgress) {
           lines.push('nothing to commit, working tree clean');
         } else {
           if (staged.length > 0) {
@@ -490,6 +580,30 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         draft.ignoredPatterns.push(pattern);
         draft.workingDirectory['.gitignore'] = { name: '.gitignore', content: draft.ignoredPatterns.join('\n') };
         message = `Added '${pattern}' to .gitignore. Remember: .gitignore is just a file - you still need to 'git add' and commit it.`;
+        break;
+      }
+
+      case 'RESOLVE': {
+        if (!draft.mergeInProgress) {
+          message = 'No merge conflict in progress.';
+          break;
+        }
+        const choice: string = action.payload;
+        if (choice !== 'ours' && choice !== 'theirs') {
+          message = `Type 'ours' to keep ${draft.mergeInProgress.targetBranch}'s version, or 'theirs' to take ${draft.mergeInProgress.sourceBranch}'s version.`;
+          break;
+        }
+        const { sourceCommitId, targetCommitId, conflictedFiles } = draft.mergeInProgress;
+        const sourceFiles = draft.commits[sourceCommitId].files;
+        const targetFiles = draft.commits[targetCommitId].files;
+        conflictedFiles.forEach(name => {
+          const resolvedFile = choice === 'ours' ? targetFiles[name] : sourceFiles[name];
+          if (resolvedFile) {
+            draft.workingDirectory[name] = { ...resolvedFile };
+            draft.stagingArea[name] = { ...resolvedFile };
+          }
+        });
+        message = `Resolved conflict${conflictedFiles.length === 1 ? '' : 's'} in ${conflictedFiles.join(', ')} by keeping '${choice}'. Now run 'git commit' to complete the merge.`;
         break;
       }
 

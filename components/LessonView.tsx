@@ -35,6 +35,7 @@ export const LessonView: React.FC<LessonViewProps> = ({ lesson, onCommand, isCom
     AMEND: <CommandButton command="AMEND" onClick={(p) => onCommand('AMEND', p)} requiresPayload payloadLabel="commit message" payloadDefault="fix: correct the typo" commandPreview={(p) => `git commit --amend -m "${p || '<commit message>'}"`} className="bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/50 hover:bg-fuchsia-500/30">commit --amend</CommandButton>,
     REVERT: <CommandButton command="REVERT" onClick={() => onCommand('REVERT')} commandPreview={() => 'git revert HEAD'} className="bg-pink-500/20 text-pink-300 border border-pink-500/50 hover:bg-pink-500/30">revert HEAD</CommandButton>,
     IGNORE: <CommandButton command="IGNORE" onClick={(p) => onCommand('IGNORE', p)} requiresPayload payloadLabel="pattern, e.g. *.log" payloadDefault="*.log" isGitCommand={false} commandPreview={(p) => `echo "${p || '<pattern>'}" >> .gitignore`} className="bg-lime-500/20 text-lime-300 border border-lime-500/50 hover:bg-lime-500/30">ignore</CommandButton>,
+    RESOLVE: <CommandButton command="RESOLVE" onClick={(p) => onCommand('RESOLVE', p)} requiresPayload payloadLabel="'ours' or 'theirs'" payloadDefault="theirs" isGitCommand={false} commandPreview={(p) => `(edit the file, keeping '${p || "ours/theirs"}'s version)`} className="bg-red-500/20 text-red-300 border border-red-500/50 hover:bg-red-500/30">resolve conflict</CommandButton>,
     RESET: <></> // Not a user command
   };
 
