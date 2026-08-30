@@ -24,27 +24,27 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
         </h2>
         
         <div className="flex flex-col gap-3">
-             <CommandButton command="INIT" onClick={() => onCommand('INIT')} className="bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20">init</CommandButton>
-             
-             <div className="border-t border-git-border my-1"></div>
-             
-             <CommandButton command="CREATE_FILE" onClick={(p) => onCommand('CREATE_FILE', {name: p, content: `Content of ${p}`})} requiresPayload payloadLabel="filename" payloadDefault="file.txt" className="bg-gray-500/10 text-gray-300 border border-gray-500/30 hover:bg-gray-500/20">create-file</CommandButton>
-             
-             <CommandButton command="MODIFY_FILE" onClick={(p) => onCommand('MODIFY_FILE', p)} requiresPayload payloadLabel="filename" payloadDefault="file.txt" className="bg-yellow-500/10 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/20">modify-file</CommandButton>
-             
-             <div className="border-t border-git-border my-1"></div>
-
-             <CommandButton command="ADD" onClick={(p) => onCommand('ADD', p)} requiresPayload payloadLabel="filename" payloadDefault="file.txt" className="bg-green-500/10 text-green-300 border border-green-500/30 hover:bg-green-500/20">add</CommandButton>
-             
-             <CommandButton command="COMMIT" onClick={(p) => onCommand('COMMIT', p)} requiresPayload payloadLabel="message" payloadDefault="my commit" className="bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20">commit -m</CommandButton>
+             <CommandButton command="INIT" onClick={() => onCommand('INIT')} commandPreview={() => 'git init'} className="bg-blue-500/10 text-blue-300 border border-blue-500/30 hover:bg-blue-500/20">init</CommandButton>
 
              <div className="border-t border-git-border my-1"></div>
 
-             <CommandButton command="BRANCH" onClick={(p) => onCommand('BRANCH', p)} requiresPayload payloadLabel="branch" payloadDefault="new-branch" className="bg-teal-500/10 text-teal-300 border border-teal-500/30 hover:bg-teal-500/20">branch</CommandButton>
+             <CommandButton command="CREATE_FILE" onClick={(p) => onCommand('CREATE_FILE', {name: p, content: `Content of ${p}`})} requiresPayload payloadLabel="filename" payloadDefault="file.txt" isGitCommand={false} commandPreview={(p) => `create ${p || 'filename'} in your editor`} className="bg-gray-500/10 text-gray-300 border border-gray-500/30 hover:bg-gray-500/20">create-file</CommandButton>
 
-             <CommandButton command="CHECKOUT" onClick={(p) => onCommand('CHECKOUT', p)} requiresPayload payloadLabel="branch" payloadDefault="main" className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20">checkout</CommandButton>
+             <CommandButton command="MODIFY_FILE" onClick={(p) => onCommand('MODIFY_FILE', p)} requiresPayload payloadLabel="filename" payloadDefault="file.txt" isGitCommand={false} commandPreview={(p) => `edit ${p || 'filename'} in your editor`} className="bg-yellow-500/10 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/20">modify-file</CommandButton>
 
-             <CommandButton command="MERGE" onClick={(p) => onCommand('MERGE', p)} requiresPayload payloadLabel="branch" payloadDefault="feature" className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20">merge</CommandButton>
+             <div className="border-t border-git-border my-1"></div>
+
+             <CommandButton command="ADD" onClick={(p) => onCommand('ADD', p)} requiresPayload payloadLabel="filename" payloadDefault="file.txt" commandPreview={(p) => `git add ${p || '<filename>'}`} className="bg-green-500/10 text-green-300 border border-green-500/30 hover:bg-green-500/20">add</CommandButton>
+
+             <CommandButton command="COMMIT" onClick={(p) => onCommand('COMMIT', p)} requiresPayload payloadLabel="message" payloadDefault="my commit" commandPreview={(p) => `git commit -m "${p || '<message>'}"`} className="bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20">commit -m</CommandButton>
+
+             <div className="border-t border-git-border my-1"></div>
+
+             <CommandButton command="BRANCH" onClick={(p) => onCommand('BRANCH', p)} requiresPayload payloadLabel="branch" payloadDefault="new-branch" commandPreview={(p) => `git branch ${p || '<branch>'}`} className="bg-teal-500/10 text-teal-300 border border-teal-500/30 hover:bg-teal-500/20">branch</CommandButton>
+
+             <CommandButton command="CHECKOUT" onClick={(p) => onCommand('CHECKOUT', p)} requiresPayload payloadLabel="branch" payloadDefault="main" commandPreview={(p) => `git checkout ${p || '<branch>'}`} className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20">checkout</CommandButton>
+
+             <CommandButton command="MERGE" onClick={(p) => onCommand('MERGE', p)} requiresPayload payloadLabel="branch" payloadDefault="feature" commandPreview={(p) => `git merge ${p || '<branch>'}`} className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20">merge</CommandButton>
         </div>
 
         <div className="mt-auto pt-4 border-t border-git-border">
