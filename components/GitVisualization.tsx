@@ -2,12 +2,13 @@
 import React, { useMemo } from 'react';
 import type { RepoState, Commit, File } from '../types';
 import { RemotePanel } from './RemotePanel';
+import { isIgnored } from '../services/gitService';
 
 interface GitVisualizationProps {
   repoState: RepoState;
 }
 
-export const getFileStatus = (fileName: string, repoState: RepoState): { status: 'untracked' | 'modified' | 'staged' | 'committed' | 'unstaged', bgColor: string } => {
+export const getFileStatus = (fileName: string, repoState: RepoState): { status: 'untracked' | 'modified' | 'staged' | 'committed' | 'unstaged' | 'ignored', bgColor: string } => {
   const headCommitId = repoState.HEAD.type === 'branch' ? repoState.branches[repoState.HEAD.name] : null;
   const lastCommit = headCommitId ? repoState.commits[headCommitId] : null;
   const isTrackedInLastCommit = lastCommit?.files[fileName];
@@ -15,10 +16,10 @@ export const getFileStatus = (fileName: string, repoState: RepoState): { status:
 
   const isInWD = !!repoState.workingDirectory[fileName];
   const isInStaging = !!repoState.stagingArea[fileName];
-  
+
   const wdContent = repoState.workingDirectory[fileName]?.content;
   const stagingContent = repoState.stagingArea[fileName]?.content;
-  
+
   if (isInStaging && stagingContent !== lastCommitFileContent) {
     return { status: 'staged', bgColor: 'bg-green-500/20 text-green-300' };
   }
@@ -29,9 +30,12 @@ export const getFileStatus = (fileName: string, repoState: RepoState): { status:
     return { status: 'modified', bgColor: 'bg-yellow-500/20 text-yellow-300' };
   }
   if (isInWD && !isTrackedInLastCommit && !isInStaging) {
+    if (fileName !== '.gitignore' && isIgnored(fileName, repoState.ignoredPatterns)) {
+      return { status: 'ignored', bgColor: 'bg-gray-500/10 text-gray-500' };
+    }
     return { status: 'untracked', bgColor: 'bg-gray-500/20 text-gray-300' };
   }
-  
+
   return { status: 'committed', bgColor: 'bg-git-bg' };
 };
 

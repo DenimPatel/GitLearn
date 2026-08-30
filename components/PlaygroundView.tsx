@@ -79,6 +79,11 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
              <CommandButton command="AMEND" onClick={(p) => onCommand('AMEND', p)} requiresPayload payloadLabel="commit message" payloadDefault="fix: correct the typo" commandPreview={(p) => `git commit --amend -m "${p || '<message>'}"`} className="bg-fuchsia-500/10 text-fuchsia-300 border border-fuchsia-500/30 hover:bg-fuchsia-500/20">commit --amend</CommandButton>
 
              <CommandButton command="REVERT" onClick={() => onCommand('REVERT')} commandPreview={() => 'git revert HEAD'} className="bg-pink-500/10 text-pink-300 border border-pink-500/30 hover:bg-pink-500/20">revert HEAD</CommandButton>
+
+             <div className="border-t border-git-border my-1"></div>
+             <h3 className="text-xs uppercase tracking-wider font-semibold text-git-text-secondary">.gitignore</h3>
+
+             <CommandButton command="IGNORE" onClick={(p) => onCommand('IGNORE', p)} requiresPayload payloadLabel="pattern, e.g. *.log" payloadDefault="*.log" isGitCommand={false} commandPreview={(p) => `echo "${p || '<pattern>'}" >> .gitignore`} className="bg-lime-500/10 text-lime-300 border border-lime-500/30 hover:bg-lime-500/20">ignore</CommandButton>
         </div>
 
         <div className="mt-auto pt-4 border-t border-git-border">

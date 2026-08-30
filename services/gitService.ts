@@ -21,6 +21,15 @@ const collectCommitChain = (tipId: string, commits: Record<string, Commit>): str
   return chain;
 };
 
+/** A simplified .gitignore matcher: exact names, "*.ext" suffix wildcards, and "dir/" prefix patterns. Not full glob semantics, but covers the common beginner cases. */
+export const isIgnored = (fileName: string, patterns: string[]): boolean =>
+  patterns.some(pattern => {
+    if (pattern === fileName) return true;
+    if (pattern.startsWith('*.')) return fileName.endsWith(pattern.slice(1));
+    if (pattern.endsWith('/')) return fileName.startsWith(pattern);
+    return false;
+  });
+
 /** A minimal line-based diff: skips matching lines at the start and end, and shows everything in between as removed/added. Good enough for this simulator's simple content mutations. */
 const diffLines = (oldContent: string, newContent: string): string[] => {
   const oldLines = oldContent.split('\n');
@@ -82,11 +91,13 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
       case 'ADD':
         const fileNameToAdd: string = action.payload || 'index.html';
         const fileToAdd = draft.workingDirectory[fileNameToAdd];
-        if (fileToAdd) {
+        if (!fileToAdd) {
+          message = `File '${fileNameToAdd}' not found.`;
+        } else if (fileNameToAdd !== '.gitignore' && isIgnored(fileNameToAdd, draft.ignoredPatterns)) {
+          message = `The following path is ignored by .gitignore: '${fileNameToAdd}'. (Use 'git add -f' to force it, but that's rarely what you want.)`;
+        } else {
           draft.stagingArea[fileNameToAdd] = { ...fileToAdd };
           message = `Staged changes for '${fileNameToAdd}'.`;
-        } else {
-          message = `File '${fileNameToAdd}' not found.`;
         }
         break;
 
@@ -321,7 +332,7 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
           if (staging && staging.content !== committed?.content) staged.push(name);
           if (wd && staging && wd.content !== staging.content) modified.push(name);
           else if (wd && !staging && committed && wd.content !== committed.content) modified.push(name);
-          if (wd && !committed && !staging) untracked.push(name);
+          if (wd && !committed && !staging && !isIgnored(name, draft.ignoredPatterns)) untracked.push(name);
         });
         const lines: string[] = [`On branch ${draft.HEAD.name}`];
         if (staged.length === 0 && modified.length === 0 && untracked.length === 0) {
@@ -463,6 +474,22 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         draft.stagingArea = {};
         Object.keys(parentFiles).forEach(name => { draft.workingDirectory[name] = parentFiles[name]; });
         message = `Reverted [${tipId}] with new commit [${newCommitId}]. Unlike amend, history stays intact - this is safe even after pushing.`;
+        break;
+      }
+
+      case 'IGNORE': {
+        const pattern: string = action.payload;
+        if (!pattern) {
+          message = 'Provide a pattern to ignore, e.g. "*.log".';
+          break;
+        }
+        if (draft.ignoredPatterns.includes(pattern)) {
+          message = `'${pattern}' is already in .gitignore.`;
+          break;
+        }
+        draft.ignoredPatterns.push(pattern);
+        draft.workingDirectory['.gitignore'] = { name: '.gitignore', content: draft.ignoredPatterns.join('\n') };
+        message = `Added '${pattern}' to .gitignore. Remember: .gitignore is just a file - you still need to 'git add' and commit it.`;
         break;
       }
 

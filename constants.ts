@@ -214,4 +214,21 @@ export const LESSONS: Lesson[] = [
     ],
     completionCondition: (state) => state.commandsRun.includes('AMEND') && state.commandsRun.includes('REVERT'),
   },
+  {
+    id: 'gitignore',
+    title: '15. Keep Files Out with .gitignore',
+    explanation: `Every project has files you never want to commit - build output, dependency folders, logs, secrets. Adding a pattern to '.gitignore' tells git to stop suggesting them as untracked files, and 'git add' will refuse to stage anything that matches.\n\nIgnore the pattern '*.log', then create a file called 'debug.log' - notice it disappears from 'git status' and can't be staged. '.gitignore' is just a regular file though, so don't forget to add and commit it like any other.`,
+    allowedCommands: ['IGNORE', 'CREATE_FILE', 'STATUS', 'ADD', 'COMMIT'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+    ],
+    completionCondition: (state) => {
+      const headCommitId = state.branches[state.HEAD.name];
+      const headFiles = headCommitId ? state.commits[headCommitId].files : {};
+      return !!headFiles['.gitignore'] && state.ignoredPatterns.includes('*.log');
+    },
+  },
 ];

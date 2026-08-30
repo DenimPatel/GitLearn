@@ -4,6 +4,7 @@ export type Command =
   | 'REMOTE_ADD' | 'PUSH' | 'PULL' | 'OPEN_PR' | 'MERGE_PR'
   | 'STATUS' | 'LOG' | 'DIFF'
   | 'DISCARD' | 'UNSTAGE' | 'AMEND' | 'REVERT'
+  | 'IGNORE'
   | 'RESET';
 
 export interface Action {
@@ -54,6 +55,8 @@ export interface RepoState {
   remote: RemoteState;
   /** Every command type dispatched so far, in order. Lets lessons require a read-only command (e.g. STATUS) actually be run, since those don't otherwise change any state a completionCondition could observe. */
   commandsRun: Command[];
+  /** Patterns from .gitignore (e.g. "*.log", "node_modules/"). Matching files are hidden from status/untracked listings and refused by ADD. */
+  ignoredPatterns: string[];
 }
 
 export interface Lesson {
