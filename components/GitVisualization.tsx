@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import type { RepoState, Commit, File } from '../types';
+import { RemotePanel } from './RemotePanel';
 
 interface GitVisualizationProps {
   repoState: RepoState;
@@ -59,7 +60,11 @@ const getEdgePath = (startX: number, startY: number, endX: number, endY: number)
   return `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
 };
 
-export const CommitGraph: React.FC<{ repoState: RepoState }> = ({ repoState }) => {
+export const CommitGraph: React.FC<{ repoState: RepoState; title?: string; emptyMessage?: string }> = ({
+    repoState,
+    title = 'Local Repository (.git)',
+    emptyMessage = 'No commits yet',
+}) => {
     const graphLayout = useMemo(() => {
         const commits = repoState.commits;
         const commitIds = Object.keys(commits);
@@ -141,7 +146,7 @@ export const CommitGraph: React.FC<{ repoState: RepoState }> = ({ repoState }) =
 
     return (
         <div className="bg-git-surface border border-git-border rounded-lg p-4 flex-grow relative overflow-auto">
-            <h3 className="font-bold text-git-text-primary mb-4 text-center border-b border-git-border pb-2">Local Repository (.git)</h3>
+            <h3 className="font-bold text-git-text-primary mb-4 text-center border-b border-git-border pb-2">{title}</h3>
             <div className="relative" style={{ width: graphLayout.width, height: graphLayout.height }}>
                 <svg className="absolute top-0 left-0 w-full h-full" aria-hidden="true">
                     {graphLayout.edges.map(edge => (
@@ -177,7 +182,7 @@ export const CommitGraph: React.FC<{ repoState: RepoState }> = ({ repoState }) =
                     );
                 })}
             </div>
-            {graphLayout.nodes.length === 0 && <p className="text-center text-sm text-git-text-secondary w-full">No commits yet</p>}
+            {graphLayout.nodes.length === 0 && <p className="text-center text-sm text-git-text-secondary w-full">{emptyMessage}</p>}
         </div>
     );
 };
@@ -212,6 +217,7 @@ export const GitVisualization: React.FC<GitVisualizationProps> = ({ repoState })
           <AreaCard title="Staging Area">{stagedFiles.length > 0 ? stagedFiles : <p className="text-center text-sm text-git-text-secondary py-2">Empty</p>}</AreaCard>
         </div>
         <CommitGraph repoState={repoState} />
+        <RemotePanel remote={repoState.remote} />
       </div>
     );
 };

@@ -16,6 +16,7 @@ const initialRepoState: RepoState = {
   commits: {},
   branches: { 'main': '' },
   HEAD: { type: 'branch', name: 'main' },
+  remote: { url: null, branches: {}, commits: {}, pullRequests: {} },
 };
 
 type ViewMode = 'tutorial' | 'playground';
