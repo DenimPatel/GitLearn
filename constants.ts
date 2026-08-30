@@ -107,5 +107,64 @@ export const LESSONS: Lesson[] = [
       const mainCommit = state.commits[mainCommitId];
       return mainCommit && mainCommit.parents.length > 1;
     },
-  }
+  },
+  {
+    id: 'remote-add-and-push',
+    title: '9. Add a Remote & Push to GitHub',
+    explanation: `So far everything has lived only on your computer. GitHub hosts a copy of your repository in the cloud called a "remote" - this is what makes it "GitHub" and not just "Git".\n\nFirst, register GitHub as a remote named 'origin' with 'git remote add origin <url>'. Then upload ("push") your commits to it with 'git push origin main'.`,
+    allowedCommands: ['REMOTE_ADD', 'PUSH'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+    ],
+    completionCondition: (state) => !!state.remote.url && !!state.remote.branches['main'],
+  },
+  {
+    id: 'push-branch-and-open-pr',
+    title: '10. Push a Branch & Open a Pull Request',
+    explanation: `Time for the feature-branch workflow, GitHub-style. Create a 'feature' branch, make a commit on it, then push that branch to origin.\n\nOnce it's pushed, open a "pull request" - this happens on the GitHub website, not in your terminal, which is why it's not a 'git' command. A pull request proposes merging 'feature' into 'main' and lets teammates review the change before it lands.`,
+    allowedCommands: ['BRANCH', 'CHECKOUT', 'MODIFY_FILE', 'ADD', 'COMMIT', 'PUSH', 'OPEN_PR'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+      { type: 'REMOTE_ADD', payload: 'https://github.com/you/gitlearn-demo.git' },
+      { type: 'PUSH', payload: 'main' },
+    ],
+    completionCondition: (state) =>
+      Object.values(state.remote.pullRequests).some(
+        pr => pr.status === 'open' && pr.sourceBranch === 'feature' && pr.targetBranch === 'main'
+      ),
+  },
+  {
+    id: 'merge-pr-and-pull',
+    title: '11. Merge the Pull Request & Pull the Changes',
+    explanation: `Your pull request is open and ready. On GitHub, a reviewer clicks the green "Merge pull request" button - this merges 'feature' into 'main' on the remote, not on your machine.\n\nSwitch back to 'main' locally, then run 'git pull origin main' to download that merge and bring your local repository up to date. This push → review → merge → pull cycle is the core of collaborating on GitHub.`,
+    allowedCommands: ['CHECKOUT', 'MERGE_PR', 'PULL'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+      { type: 'REMOTE_ADD', payload: 'https://github.com/you/gitlearn-demo.git' },
+      { type: 'PUSH', payload: 'main' },
+      { type: 'BRANCH', payload: 'feature' },
+      { type: 'CHECKOUT', payload: 'feature' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Add feature' },
+      { type: 'PUSH', payload: 'feature' },
+      { type: 'OPEN_PR', payload: 'Add awesome feature' },
+    ],
+    completionCondition: (state) => {
+      const pr = Object.values(state.remote.pullRequests).find(
+        p => p.sourceBranch === 'feature' && p.targetBranch === 'main'
+      );
+      if (!pr || pr.status !== 'merged') return false;
+      return state.branches['main'] === state.remote.branches['main'];
+    },
+  },
 ];

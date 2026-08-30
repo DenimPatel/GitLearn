@@ -1,5 +1,8 @@
 
-export type Command = 'INIT' | 'CREATE_FILE' | 'MODIFY_FILE' | 'ADD' | 'COMMIT' | 'BRANCH' | 'CHECKOUT' | 'MERGE' | 'RESET';
+export type Command =
+  | 'INIT' | 'CREATE_FILE' | 'MODIFY_FILE' | 'ADD' | 'COMMIT' | 'BRANCH' | 'CHECKOUT' | 'MERGE'
+  | 'REMOTE_ADD' | 'PUSH' | 'PULL' | 'OPEN_PR' | 'MERGE_PR'
+  | 'RESET';
 
 export interface Action {
   type: Command;
@@ -23,6 +26,22 @@ export interface Head {
   name: string;
 }
 
+export interface PullRequest {
+  id: string;
+  title: string;
+  sourceBranch: string;
+  targetBranch: string;
+  status: 'open' | 'merged';
+}
+
+/** A simulated GitHub-hosted copy of the repo ("origin"). Only updated by push/pull/PR actions - it never changes on its own. */
+export interface RemoteState {
+  url: string | null;
+  branches: Record<string, string>; // branch name -> commit id, as last pushed/merged
+  commits: Record<string, Commit>;
+  pullRequests: Record<string, PullRequest>;
+}
+
 export interface RepoState {
   isInitialized: boolean;
   workingDirectory: Record<string, File>;
@@ -30,6 +49,7 @@ export interface RepoState {
   commits: Record<string, Commit>;
   branches: Record<string, string>; // branch name -> commit id
   HEAD: Head;
+  remote: RemoteState;
 }
 
 export interface Lesson {

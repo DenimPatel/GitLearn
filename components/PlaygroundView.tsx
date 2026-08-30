@@ -3,6 +3,7 @@ import React from 'react';
 import type { RepoState, Command } from '../types';
 import { CommandButton } from './CommandButton';
 import { CommitGraph, FilePill, getFileStatus } from './GitVisualization';
+import { RemotePanel } from './RemotePanel';
 
 interface PlaygroundViewProps {
   repoState: RepoState;
@@ -16,7 +17,7 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
   const stagedFiles = Object.keys(repoState.stagingArea);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-[600px]">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full min-h-[600px]">
       {/* Pane 1: Command Center */}
       <div className="bg-git-surface border border-git-border rounded-lg p-4 flex flex-col gap-4 overflow-y-auto">
         <h2 className="text-lg font-bold text-git-text-primary border-b border-git-border pb-2 flex items-center gap-2">
@@ -45,6 +46,19 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
              <CommandButton command="CHECKOUT" onClick={(p) => onCommand('CHECKOUT', p)} requiresPayload payloadLabel="branch" payloadDefault="main" commandPreview={(p) => `git checkout ${p || '<branch>'}`} className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20">checkout</CommandButton>
 
              <CommandButton command="MERGE" onClick={(p) => onCommand('MERGE', p)} requiresPayload payloadLabel="branch" payloadDefault="feature" commandPreview={(p) => `git merge ${p || '<branch>'}`} className="bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20">merge</CommandButton>
+
+             <div className="border-t border-git-border my-1"></div>
+             <h3 className="text-xs uppercase tracking-wider font-semibold text-git-text-secondary">GitHub (origin)</h3>
+
+             <CommandButton command="REMOTE_ADD" onClick={(p) => onCommand('REMOTE_ADD', p)} requiresPayload payloadLabel="remote url" payloadDefault="https://github.com/you/repo.git" commandPreview={(p) => `git remote add origin ${p || '<url>'}`} className="bg-orange-500/10 text-orange-300 border border-orange-500/30 hover:bg-orange-500/20">remote add origin</CommandButton>
+
+             <CommandButton command="PUSH" onClick={(p) => onCommand('PUSH', p)} requiresPayload payloadLabel="branch" payloadDefault="main" commandPreview={(p) => `git push origin ${p || '<branch>'}`} className="bg-rose-500/10 text-rose-300 border border-rose-500/30 hover:bg-rose-500/20">push origin</CommandButton>
+
+             <CommandButton command="PULL" onClick={(p) => onCommand('PULL', p)} requiresPayload payloadLabel="branch" payloadDefault="main" commandPreview={(p) => `git pull origin ${p || '<branch>'}`} className="bg-sky-500/10 text-sky-300 border border-sky-500/30 hover:bg-sky-500/20">pull origin</CommandButton>
+
+             <CommandButton command="OPEN_PR" onClick={(p) => onCommand('OPEN_PR', p)} requiresPayload payloadLabel="PR title" payloadDefault="Add awesome feature" isGitCommand={false} commandPreview={(p) => `On GitHub: Compare & pull request → "${p || '<title>'}"`} className="bg-violet-500/10 text-violet-300 border border-violet-500/30 hover:bg-violet-500/20">open pull request</CommandButton>
+
+             <CommandButton command="MERGE_PR" onClick={() => onCommand('MERGE_PR')} isGitCommand={false} commandPreview={() => 'On GitHub: click "Merge pull request"'} className="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20">merge pull request</CommandButton>
         </div>
 
         <div className="mt-auto pt-4 border-t border-git-border">
@@ -102,6 +116,11 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
       {/* Pane 3: Git Graph */}
       <div className="flex flex-col h-full">
          <CommitGraph repoState={repoState} />
+      </div>
+
+      {/* Pane 4: Remote (GitHub) */}
+      <div className="flex flex-col h-full">
+         <RemotePanel remote={repoState.remote} />
       </div>
     </div>
   );
