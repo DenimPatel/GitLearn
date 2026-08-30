@@ -30,6 +30,10 @@ export const LessonView: React.FC<LessonViewProps> = ({ lesson, onCommand, isCom
     STATUS: <CommandButton command="STATUS" onClick={() => onCommand('STATUS')} commandPreview={() => 'git status'} className="bg-slate-500/20 text-slate-300 border border-slate-500/50 hover:bg-slate-500/30">status</CommandButton>,
     LOG: <CommandButton command="LOG" onClick={() => onCommand('LOG')} commandPreview={() => 'git log'} className="bg-slate-500/20 text-slate-300 border border-slate-500/50 hover:bg-slate-500/30">log</CommandButton>,
     DIFF: <CommandButton command="DIFF" onClick={() => onCommand('DIFF')} commandPreview={() => 'git diff'} className="bg-slate-500/20 text-slate-300 border border-slate-500/50 hover:bg-slate-500/30">diff</CommandButton>,
+    DISCARD: <CommandButton command="DISCARD" onClick={(p) => onCommand('DISCARD', p)} requiresPayload payloadLabel="filename.ext" payloadDefault="index.html" commandPreview={(p) => `git restore ${p || '<filename.ext>'}`} className="bg-red-500/20 text-red-300 border border-red-500/50 hover:bg-red-500/30">restore</CommandButton>,
+    UNSTAGE: <CommandButton command="UNSTAGE" onClick={(p) => onCommand('UNSTAGE', p)} requiresPayload payloadLabel="filename.ext" payloadDefault="index.html" commandPreview={(p) => `git restore --staged ${p || '<filename.ext>'}`} className="bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500/30">restore --staged</CommandButton>,
+    AMEND: <CommandButton command="AMEND" onClick={(p) => onCommand('AMEND', p)} requiresPayload payloadLabel="commit message" payloadDefault="fix: correct the typo" commandPreview={(p) => `git commit --amend -m "${p || '<commit message>'}"`} className="bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/50 hover:bg-fuchsia-500/30">commit --amend</CommandButton>,
+    REVERT: <CommandButton command="REVERT" onClick={() => onCommand('REVERT')} commandPreview={() => 'git revert HEAD'} className="bg-pink-500/20 text-pink-300 border border-pink-500/50 hover:bg-pink-500/30">revert HEAD</CommandButton>,
     RESET: <></> // Not a user command
   };
 

@@ -3,6 +3,7 @@ export type Command =
   | 'INIT' | 'CREATE_FILE' | 'MODIFY_FILE' | 'ADD' | 'COMMIT' | 'BRANCH' | 'CHECKOUT' | 'MERGE'
   | 'REMOTE_ADD' | 'PUSH' | 'PULL' | 'OPEN_PR' | 'MERGE_PR'
   | 'STATUS' | 'LOG' | 'DIFF'
+  | 'DISCARD' | 'UNSTAGE' | 'AMEND' | 'REVERT'
   | 'RESET';
 
 export interface Action {

@@ -68,6 +68,17 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ repoState, onCom
              <CommandButton command="LOG" onClick={() => onCommand('LOG')} commandPreview={() => 'git log'} className="bg-slate-500/10 text-slate-300 border border-slate-500/30 hover:bg-slate-500/20">log</CommandButton>
 
              <CommandButton command="DIFF" onClick={() => onCommand('DIFF')} commandPreview={() => 'git diff'} className="bg-slate-500/10 text-slate-300 border border-slate-500/30 hover:bg-slate-500/20">diff</CommandButton>
+
+             <div className="border-t border-git-border my-1"></div>
+             <h3 className="text-xs uppercase tracking-wider font-semibold text-git-text-secondary">Undo Mistakes</h3>
+
+             <CommandButton command="DISCARD" onClick={(p) => onCommand('DISCARD', p)} requiresPayload payloadLabel="filename" payloadDefault="file.txt" commandPreview={(p) => `git restore ${p || '<filename>'}`} className="bg-red-500/10 text-red-300 border border-red-500/30 hover:bg-red-500/20">restore</CommandButton>
+
+             <CommandButton command="UNSTAGE" onClick={(p) => onCommand('UNSTAGE', p)} requiresPayload payloadLabel="filename" payloadDefault="file.txt" commandPreview={(p) => `git restore --staged ${p || '<filename>'}`} className="bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20">restore --staged</CommandButton>
+
+             <CommandButton command="AMEND" onClick={(p) => onCommand('AMEND', p)} requiresPayload payloadLabel="commit message" payloadDefault="fix: correct the typo" commandPreview={(p) => `git commit --amend -m "${p || '<message>'}"`} className="bg-fuchsia-500/10 text-fuchsia-300 border border-fuchsia-500/30 hover:bg-fuchsia-500/20">commit --amend</CommandButton>
+
+             <CommandButton command="REVERT" onClick={() => onCommand('REVERT')} commandPreview={() => 'git revert HEAD'} className="bg-pink-500/10 text-pink-300 border border-pink-500/30 hover:bg-pink-500/20">revert HEAD</CommandButton>
         </div>
 
         <div className="mt-auto pt-4 border-t border-git-border">

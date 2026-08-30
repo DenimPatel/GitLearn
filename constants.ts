@@ -185,4 +185,33 @@ export const LESSONS: Lesson[] = [
       state.commandsRun.includes('LOG') &&
       Object.keys(state.commits).length > 1,
   },
+  {
+    id: 'undo-before-commit',
+    title: '13. Undo Mistakes Before You Commit',
+    explanation: `Mistakes are normal - here's how to undo them before they're saved.\n\n'git restore <file>' throws away uncommitted edits, resetting a file back to its last saved version. Modify the file, then restore it and watch the change disappear.\n\n'git restore --staged <file>' does something gentler: it unstages a file without losing your edits, so you can keep working on it before committing. Modify the file again, stage it, then unstage it.`,
+    allowedCommands: ['MODIFY_FILE', 'DISCARD', 'ADD', 'UNSTAGE', 'STATUS'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+    ],
+    completionCondition: (state) => state.commandsRun.includes('DISCARD') && state.commandsRun.includes('UNSTAGE'),
+  },
+  {
+    id: 'undo-after-commit',
+    title: '14. Undo Mistakes After You Commit: amend & revert',
+    explanation: `Already committed the mistake? You have two tools, and picking the right one matters.\n\n'git commit --amend' replaces your MOST RECENT commit entirely (new content, new message, new commit ID). It's great for fixing a typo you just made - but never amend a commit you've already pushed and shared, since it rewrites history out from under anyone else who has it.\n\n'git revert' is the safe alternative: it creates a brand new commit that undoes an old one, leaving history untouched. Always safe, even after pushing.\n\nFix the typo below with an amend, then use revert to undo the whole commit and see the difference in 'git log'.`,
+    allowedCommands: ['MODIFY_FILE', 'ADD', 'AMEND', 'REVERT', 'LOG'],
+    setupCommands: [
+      { type: 'INIT' },
+      { type: 'CREATE_FILE', payload: { name: 'index.html', content: 'Hello World' } },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Initial commit' },
+      { type: 'MODIFY_FILE', payload: 'index.html' },
+      { type: 'ADD', payload: 'index.html' },
+      { type: 'COMMIT', payload: 'Fx typo' },
+    ],
+    completionCondition: (state) => state.commandsRun.includes('AMEND') && state.commandsRun.includes('REVERT'),
+  },
 ];

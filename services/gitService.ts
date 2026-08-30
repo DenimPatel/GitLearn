@@ -388,6 +388,84 @@ export const gitReducer = (state: RepoState, action: Action): { newState: RepoSt
         break;
       }
 
+      case 'DISCARD': {
+        const fileName: string = action.payload;
+        const headCommitId = draft.branches[draft.HEAD.name];
+        const lastCommitFiles = headCommitId ? draft.commits[headCommitId].files : {};
+        const baseline = draft.stagingArea[fileName] ?? lastCommitFiles[fileName];
+        if (!baseline) {
+          message = `'${fileName}' is untracked - there's nothing to discard. (git restore only works on files git already knows about.)`;
+          break;
+        }
+        draft.workingDirectory[fileName] = { ...baseline };
+        message = `Discarded uncommitted changes in '${fileName}'.`;
+        break;
+      }
+
+      case 'UNSTAGE': {
+        const fileName: string = action.payload;
+        if (!draft.stagingArea[fileName]) {
+          message = `'${fileName}' is not staged.`;
+          break;
+        }
+        delete draft.stagingArea[fileName];
+        message = `Unstaged '${fileName}' (still modified in your working directory).`;
+        break;
+      }
+
+      case 'AMEND': {
+        const branchName = draft.HEAD.name;
+        const tipId = draft.branches[branchName];
+        if (!tipId) {
+          message = 'error: cannot amend, no commits yet on this branch.';
+          break;
+        }
+        const tipCommit = draft.commits[tipId];
+        const newMessage: string = action.payload || tipCommit.message;
+        const amendedFiles = { ...tipCommit.files, ...draft.stagingArea };
+        const newCommitId = createCommitId();
+        draft.commits[newCommitId] = {
+          id: newCommitId,
+          parents: tipCommit.parents,
+          message: newMessage,
+          files: amendedFiles,
+        };
+        delete draft.commits[tipId];
+        draft.branches[branchName] = newCommitId;
+        draft.stagingArea = {};
+        Object.keys(amendedFiles).forEach(name => { draft.workingDirectory[name] = amendedFiles[name]; });
+        message = `Amended commit [${tipId}] -> [${newCommitId}]. The old commit ID is gone - never amend a commit you've already pushed and shared with others!`;
+        break;
+      }
+
+      case 'REVERT': {
+        const branchName = draft.HEAD.name;
+        const tipId = draft.branches[branchName];
+        if (!tipId) {
+          message = 'error: nothing to revert, no commits yet on this branch.';
+          break;
+        }
+        const targetCommit = draft.commits[tipId];
+        const parentId = targetCommit.parents[0];
+        if (!parentId) {
+          message = 'Cannot revert the very first commit (it has no earlier version to restore).';
+          break;
+        }
+        const parentFiles = draft.commits[parentId].files;
+        const newCommitId = createCommitId();
+        draft.commits[newCommitId] = {
+          id: newCommitId,
+          parents: [tipId],
+          message: `Revert "${targetCommit.message}"`,
+          files: { ...parentFiles },
+        };
+        draft.branches[branchName] = newCommitId;
+        draft.stagingArea = {};
+        Object.keys(parentFiles).forEach(name => { draft.workingDirectory[name] = parentFiles[name]; });
+        message = `Reverted [${tipId}] with new commit [${newCommitId}]. Unlike amend, history stays intact - this is safe even after pushing.`;
+        break;
+      }
+
       default:
         message = `Unknown command: ${action.type}`;
         break;
