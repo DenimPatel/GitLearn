@@ -1,0 +1,85 @@
+/* Motion is the explanation: each command animates the one thing that moved.
+   Everything here degrades to a static highlight under prefers-reduced-motion. */
+
+@keyframes gl-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes gl-move {
+  0%   { transform: translateX(-10px); opacity: 0.4; }
+  100% { transform: none; opacity: 1; }
+}
+
+@keyframes gl-flash {
+  0%   { background-color: rgba(88, 166, 255, 0.28); }
+  100% { background-color: transparent; }
+}
+
+@keyframes gl-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes gl-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+.gl-enter  { animation: gl-enter 220ms cubic-bezier(0.2, 0, 0, 1) both; }
+.gl-move   { animation: gl-move 260ms cubic-bezier(0.2, 0, 0, 1) both; }
+.gl-flash  { animation: gl-flash 900ms ease-out both; }
+.gl-pop    { animation: gl-pop 260ms cubic-bezier(0.2, 0, 0, 1) both; }
+.gl-pulse  { animation: gl-pulse 1.6s ease-in-out infinite; }
+
+/* Refs slide between commits rather than teleporting. */
+.gl-ref { transition: transform 280ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms ease; }
+
+.gl-scroll { scrollbar-width: thin; scrollbar-color: #30363d transparent; }
+.gl-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
+.gl-scroll::-webkit-scrollbar-thumb { background: #30363d; border-radius: 999px; }
+.gl-scroll::-webkit-scrollbar-thumb:hover { background: #444c56; }
+.gl-scroll::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-enter, .gl-move, .gl-pop, .gl-flash, .gl-pulse {
+    animation: none !important;
+  }
+  .gl-ref { transition: none !important; }
+  /* Keep the "something changed here" signal, without the movement. */
+  .gl-changed { outline: 2px solid #58a6ff; outline-offset: 2px; }
+}
+
+/* Markdown-ish prose rendered from lesson text. */
+.gl-prose p { margin: 0 0 0.85em; }
+.gl-prose ul, .gl-prose ol { margin: 0 0 0.85em 1.15em; }
+.gl-prose li { margin-bottom: 0.3em; }
+.gl-prose code {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.86em;
+  background: #1c2128;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.08em 0.34em;
+  color: #a5d6ff;
+}
+.gl-prose pre {
+  background: #0b0f14;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 0.7em 0.85em;
+  overflow-x: auto;
+  margin: 0 0 0.9em;
+}
+.gl-prose pre code { background: none; border: none; padding: 0; color: #c9d1d9; }
+.gl-prose blockquote {
+  border-left: 3px solid #58a6ff;
+  padding-left: 0.9em;
+  margin: 0 0 0.9em;
+  color: #adbac7;
+}
+.gl-prose table { border-collapse: collapse; margin: 0 0 0.9em; font-size: 0.92em; display: block; overflow-x: auto; }
+.gl-prose th, .gl-prose td { border: 1px solid #30363d; padding: 0.34em 0.6em; text-align: left; }
+.gl-prose th { background: #1c2128; font-weight: 600; }
+.gl-prose strong { color: #e6edf3; font-weight: 600; }

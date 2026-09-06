@@ -130,19 +130,51 @@ export function deleteRef(repo: Repository, name: RefName): void {
   delete repo.upstream[name];
 }
 
-/** All commits reachable from a set of tips, newest first by commit time then oid. */
+/**
+ * All commits reachable from a set of tips, in topological order: a commit is
+ * never emitted before a commit that descends from it. Among commits that are
+ * ready, the newest goes first, with the oid as a final tiebreak so the order
+ * is fully deterministic.
+ *
+ * The topological guarantee matters: when a branch tip is also an ancestor of
+ * another tip (a branch that is simply behind), a date-only sort can place the
+ * parent above its own child, which draws a visibly wrong graph.
+ */
 export function walkHistory(repo: Repository, tips: Oid[]): Oid[] {
-  const seen = new Set<Oid>();
+  const reachable = new Set<Oid>();
+  const stack = tips.filter((t) => repo.objects[t]?.type === 'commit');
+  while (stack.length) {
+    const oid = stack.pop()!;
+    if (reachable.has(oid) || repo.objects[oid]?.type !== 'commit') continue;
+    reachable.add(oid);
+    stack.push(...readCommit(repo, oid).parents);
+  }
+
+  // In-degree here counts children within the reachable set.
+  const pendingChildren = new Map<Oid, number>();
+  for (const oid of reachable) pendingChildren.set(oid, 0);
+  for (const oid of reachable) {
+    for (const p of readCommit(repo, oid).parents) {
+      if (reachable.has(p)) pendingChildren.set(p, (pendingChildren.get(p) ?? 0) + 1);
+    }
+  }
+
+  const newestFirst = (a: Oid, b: Oid) =>
+    readCommit(repo, b).committer.timestamp - readCommit(repo, a).committer.timestamp
+    || (a < b ? -1 : a > b ? 1 : 0);
+
+  const ready = [...reachable].filter((oid) => pendingChildren.get(oid) === 0);
   const out: Oid[] = [];
-  const queue = tips.filter((t) => repo.objects[t]);
-  while (queue.length) {
-    // Always expand the newest unvisited commit, so output is in date order.
-    queue.sort((a, b) => readCommit(repo, b).committer.timestamp - readCommit(repo, a).committer.timestamp);
-    const oid = queue.shift()!;
-    if (seen.has(oid)) continue;
-    seen.add(oid);
+  while (ready.length) {
+    ready.sort(newestFirst);
+    const oid = ready.shift()!;
     out.push(oid);
-    for (const p of readCommit(repo, oid).parents) if (!seen.has(p)) queue.push(p);
+    for (const p of readCommit(repo, oid).parents) {
+      if (!reachable.has(p)) continue;
+      const remaining = (pendingChildren.get(p) ?? 0) - 1;
+      pendingChildren.set(p, remaining);
+      if (remaining === 0) ready.push(p);
+    }
   }
   return out;
 }

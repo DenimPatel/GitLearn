@@ -146,3 +146,28 @@ describe('pull requests', () => {
     expect(r.stderr.join('\n')).toContain('git push -u origin local-only');
   });
 });
+
+describe('history ordering', () => {
+  it('never places a commit above one that descends from it', () => {
+    // A branch that is simply behind is also a tip, so a date-only sort could
+    // list it above its own child. History must stay topological.
+    let w = published();
+    w = run(['teammate push main NOTES.md "notes" "teammate commit"', 'git fetch'], w);
+
+    const order = graph(w);
+    const localTip = order.findIndex((l) => l.includes('HEAD -> main'));
+    const remoteTip = order.findIndex((l) => l.includes('origin/main'));
+    expect(remoteTip).toBeLessThan(localTip);
+  });
+
+  it('gives a teammate’s later commit a later timestamp than yours', () => {
+    let w = published();
+    const mine = headOid(w.local)!;
+    w = run(['teammate push main NOTES.md "notes" "teammate commit"', 'git fetch'], w);
+    const theirs = resolveRefToOid(w.local, 'refs/remotes/origin/main')!;
+
+    const at = (oid: string) =>
+      (w.local.objects[oid] as { committer: { timestamp: number } }).committer.timestamp;
+    expect(at(theirs)).toBeGreaterThan(at(mine));
+  });
+});

@@ -51,7 +51,20 @@ export function execute(world: World, command: string): CommandResult {
     if (redirect) args.flags['__redirect'] = [redirect.op, redirect.path];
 
     const next = produce(world, (draft) => {
-      spec.handler({ world: draft as World, args, out });
+      const w = draft as World;
+      // Keep the two repositories on one shared clock so commit times are
+      // comparable across them, whichever side created them.
+      if (w.origin) {
+        const now = Math.max(w.local.clock, w.origin.clock);
+        w.local.clock = now;
+        w.origin.clock = now;
+      }
+      spec.handler({ world: w, args, out });
+      if (w.origin) {
+        const now = Math.max(w.local.clock, w.origin.clock);
+        w.local.clock = now;
+        w.origin.clock = now;
+      }
     });
     return { world: next, command, stdout, stderr, exitCode, events };
   } catch (err) {

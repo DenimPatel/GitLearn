@@ -1,0 +1,9 @@
+@import './design/motion.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* The app owns the viewport: no page-level scrolling, panels scroll internally. */
+html, body, #root { height: 100%; }
+body { margin: 0; overflow: hidden; }
