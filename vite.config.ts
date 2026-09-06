@@ -5,4 +5,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: '/GitLearn/',
-});
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    globals: true,
+  },
+} as Parameters<typeof defineConfig>[0]);
