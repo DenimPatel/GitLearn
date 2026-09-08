@@ -142,6 +142,12 @@ export function useLesson(
     resetStep,
     resetLesson,
     showHint: () => setHintLevel((h) => Math.min(h + 1, lesson.steps[stepIndex]?.hints.length ?? 0)),
+    dismissIntro: () => setProgress((p) => {
+      if (p.seenIntro) return p;
+      const nextP: Progress = { ...p, seenIntro: true };
+      saveProgress(nextP);
+      return nextP;
+    }),
     recordPrediction: (correct: boolean) => setProgress((p) => {
       const nextP: Progress = {
         ...p,

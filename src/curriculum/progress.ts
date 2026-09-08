@@ -11,6 +11,8 @@ export interface Progress {
   currentLessonId: string | null;
   hintsUsed: Record<string, number>;
   predictionsAnswered: Record<string, boolean>;
+  /** Whether the welcome screen has been shown. First visit only. */
+  seenIntro: boolean;
 }
 
 export const emptyProgress = (): Progress => ({
@@ -20,6 +22,7 @@ export const emptyProgress = (): Progress => ({
   currentLessonId: null,
   hintsUsed: {},
   predictionsAnswered: {},
+  seenIntro: false,
 });
 
 /** Never let stale or corrupt storage break the app: any failure falls back to
@@ -35,6 +38,9 @@ function migrate(raw: unknown): Progress {
     completedLessons: p.completedLessons ?? [],
     hintsUsed: p.hintsUsed ?? {},
     predictionsAnswered: p.predictionsAnswered ?? {},
+    // Anyone with a lesson already in progress has been here before: never
+    // interrupt a returning learner with the intro.
+    seenIntro: p.seenIntro ?? p.currentLessonId !== null,
   };
 }
 
