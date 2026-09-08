@@ -10,8 +10,10 @@ import { LessonPanel } from './ui/Lesson/LessonPanel';
 import { CurriculumRail } from './ui/Lesson/CurriculumRail';
 import { ConceptMap } from './ui/Lesson/ConceptMap';
 import { ConflictPanel } from './ui/Conflict/ConflictPanel';
+import { Welcome } from './ui/Welcome/Welcome';
 import { Button, BranchIcon, Card } from './ui/primitives';
 import { LESSONS, lessonIndex } from './curriculum/lessons';
+import { loadProgress } from './curriculum/progress';
 import { emptyWorld } from './engine/world';
 import { allCommands } from './engine/registry';
 import { toneFor, TONE_CLASS } from './design/tokens';
@@ -27,6 +29,9 @@ export default function App() {
   /** Below xl the side panels have no room, so they open as a drawer instead of
    *  disappearing — a learner on a tablet must still be able to read the lesson. */
   const [drawer, setDrawer] = useState<'none' | 'lesson' | 'rail'>('none');
+  /** Read before any effect runs: useLesson writes a currentLessonId on mount,
+   *  so asking storage later would always look like a return visit. */
+  const [showWelcome, setShowWelcome] = useState(() => !loadProgress().seenIntro);
 
   const engine = useEngine();
   const lesson = useLesson(engine.world, engine.reset);
@@ -67,6 +72,8 @@ export default function App() {
 
   const number = lessonIndex(lesson.lesson.id) + 1;
 
+  const leaveWelcome = () => { lesson.dismissIntro(); setShowWelcome(false); };
+
   const lessonPanel = (
     <LessonPanel
       lesson={lesson.lesson}
@@ -85,6 +92,8 @@ export default function App() {
       onPrediction={lesson.recordPrediction}
     />
   );
+
+  if (showWelcome) return <Welcome onStart={leaveWelcome} />;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-bg text-fg">
@@ -136,6 +145,7 @@ export default function App() {
               currentId={lesson.lesson.id}
               onSelect={goToLesson}
               onOpenConceptMap={() => setConceptMapOpen(true)}
+              onReplayIntro={() => setShowWelcome(true)}
             />
           </aside>
         )}
@@ -191,6 +201,7 @@ export default function App() {
                 currentId={lesson.lesson.id}
                 onSelect={goToLesson}
                 onOpenConceptMap={() => { setDrawer('none'); setConceptMapOpen(true); }}
+                onReplayIntro={() => { setDrawer('none'); setShowWelcome(true); }}
               />
             )}
           </div>

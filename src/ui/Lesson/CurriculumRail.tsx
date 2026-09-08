@@ -3,11 +3,12 @@ import { MODULES } from '../../curriculum/lessons';
 import { MODULE_TITLES } from '../../curriculum/concepts';
 import { progressSummary, type Progress } from '../../curriculum/progress';
 
-export function CurriculumRail({ progress, currentId, onSelect, onOpenConceptMap }: {
+export function CurriculumRail({ progress, currentId, onSelect, onOpenConceptMap, onReplayIntro }: {
   progress: Progress;
   currentId: string;
   onSelect: (id: string) => void;
   onOpenConceptMap: () => void;
+  onReplayIntro: () => void;
 }) {
   const summary = progressSummary(progress);
   let counter = 0;
@@ -66,6 +67,13 @@ export function CurriculumRail({ progress, currentId, onSelect, onOpenConceptMap
             </ul>
           </div>
         ))}
+      </div>
+
+      <div className="shrink-0 border-t border-border px-3 py-2">
+        <button type="button" onClick={onReplayIntro}
+          className="text-[11px] text-fg-subtle transition-colors hover:text-fg-muted">
+          Replay intro
+        </button>
       </div>
     </nav>
   );
