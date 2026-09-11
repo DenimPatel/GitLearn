@@ -35,7 +35,7 @@ export function initRepo(repo: Repository): void {
 }
 
 export function emptyWorld(): World {
-  return { local: emptyRepo(), origin: null, hosting: { pullRequests: [] } };
+  return { local: emptyRepo(), origin: null, hosting: { pullRequests: [] }, history: [] };
 }
 
 export const serializeWorld = (w: World): string => JSON.stringify(w);

@@ -66,6 +66,14 @@ export function Terminal({ entries, prompt, world, onRun, draft, onDraftChange }
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') { e.preventDefault(); submit(); return; }
 
+    if (e.ctrlKey && e.key === 'c' && !window.getSelection()?.toString()) {
+      e.preventDefault();
+      onDraftChange('');
+      setHistoryIndex(-1);
+      setCompletions([]);
+      return;
+    }
+
     if (e.key === 'Tab') {
       e.preventDefault();
       const options = completionsFor(world, draft);
