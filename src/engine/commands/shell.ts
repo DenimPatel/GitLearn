@@ -2,9 +2,38 @@ import { register, type CommandSpec } from '../registry';
 import { E } from '../errors';
 import { flagValues } from '../parseArgs';
 import { ignored } from '../worktree';
+import type { Repository } from '../types';
 
 /** A deliberately tiny shell. The curriculum has to create and edit files, and
  *  a terminal that only understands `git` would teach the wrong thing. */
+
+/** True if `path` is a directory: either explicitly created by `mkdir` and
+ *  still empty, or implied as a prefix of some file's (or other directory's)
+ *  path — the same "directories are just path prefixes" model `mkdir` and
+ *  `cd` already share. */
+function isDirectory(repo: Repository, path: string): boolean {
+  const clean = path.replace(/\/$/, '');
+  if (repo.worktree.dirs.includes(clean)) return true;
+  const prefix = clean + '/';
+  return Object.keys(repo.worktree.files).some((p) => p.startsWith(prefix))
+    || repo.worktree.dirs.some((d) => d.startsWith(prefix));
+}
+
+/** A file just appeared under one of `mkdir`'s tracked empty directories —
+ *  drop those entries so they don't linger as phantom directories once
+ *  something real exists there (e.g. so `rm -r` sees the file, not a stale
+ *  empty-dir record). */
+function pruneDirs(repo: Repository, path: string): void {
+  if (!repo.worktree.dirs.length) return;
+  const parts = path.split('/');
+  parts.pop();
+  let prefix = '';
+  for (const part of parts) {
+    prefix = prefix ? `${prefix}/${part}` : part;
+    const i = repo.worktree.dirs.indexOf(prefix);
+    if (i !== -1) repo.worktree.dirs.splice(i, 1);
+  }
+}
 
 const touch: CommandSpec = {
   name: 'touch', namespace: 'shell', summary: 'Create an empty file',
@@ -13,6 +42,7 @@ const touch: CommandSpec = {
     if (!args.positionals.length) throw E.shell('touch: missing file operand');
     for (const p of args.positionals) {
       world.local.worktree.files[p] ??= '';
+      pruneDirs(world.local, p);
       out.event({ type: 'file-written', path: p });
     }
   },
@@ -28,6 +58,7 @@ const echo: CommandSpec = {
       const [op, path] = redirect;
       const prev = op === '>>' ? world.local.worktree.files[path] ?? '' : '';
       world.local.worktree.files[path] = prev + text + '\n';
+      pruneDirs(world.local, path);
       out.event({ type: 'file-written', path });
       return;
     }
@@ -53,10 +84,12 @@ const ls: CommandSpec = {
   concepts: ['working-directory'],
   handler: ({ world, args, out }) => {
     const all = args.flags.all !== undefined;
-    const files = Object.keys(world.local.worktree.files)
-      .filter((p) => all || !ignored(world.local, p))
-      .sort();
-    if (files.length) out.line(files.join('  '));
+    const repo = world.local;
+    const files = Object.keys(repo.worktree.files).filter((p) => all || !ignored(repo, p));
+    // A directory `mkdir` created is only worth showing while nothing inside it exists yet.
+    const emptyDirs = repo.worktree.dirs.filter((d) => !files.some((f) => f.startsWith(d + '/')));
+    const entries = [...files, ...emptyDirs.map((d) => `${d}/`)].sort();
+    if (entries.length) out.line(entries.join('  '));
   },
 };
 
@@ -67,23 +100,39 @@ const rm: CommandSpec = {
   concepts: ['working-directory'],
   handler: ({ world, args, out }) => {
     if (!args.positionals.length) throw E.shell('rm: missing operand');
+    const repo = world.local;
     for (const p of args.positionals) {
-      if (world.local.worktree.files[p] === undefined) {
-        if (args.flags.force === undefined) throw E.shell(`rm: cannot remove '${p}': No such file or directory`);
+      if (repo.worktree.files[p] !== undefined) {
+        delete repo.worktree.files[p];
+        out.event({ type: 'file-written', path: p });
         continue;
       }
-      delete world.local.worktree.files[p];
-      out.event({ type: 'file-written', path: p });
+      const dirIndex = repo.worktree.dirs.indexOf(p.replace(/\/$/, ''));
+      if (dirIndex !== -1) {
+        if (args.flags.recursive === undefined) throw E.shell(`rm: cannot remove '${p}': Is a directory`);
+        repo.worktree.dirs.splice(dirIndex, 1);
+        continue;
+      }
+      if (args.flags.force === undefined) throw E.shell(`rm: cannot remove '${p}': No such file or directory`);
     }
   },
 };
 
 const mkdir: CommandSpec = {
-  name: 'mkdir', namespace: 'shell', summary: 'Create a directory (implicit — paths just nest)',
+  name: 'mkdir', namespace: 'shell', summary: 'Create an empty directory',
   syntax: 'mkdir <dir>', flags: [{ long: 'parents', short: 'p', arg: 'none' }],
   concepts: ['working-directory'],
-  // Directories exist only as path prefixes here, so this is a friendly no-op.
-  handler: () => {},
+  // Directories exist only as path prefixes here, but an empty one still has
+  // to be remembered — otherwise `cd` right after `mkdir` would say it's missing.
+  handler: ({ world, args }) => {
+    if (!args.positionals.length) throw E.shell('mkdir: missing operand');
+    const repo = world.local;
+    for (const raw of args.positionals) {
+      const p = raw.replace(/\/$/, '');
+      if (repo.worktree.files[p] !== undefined) throw E.shell(`mkdir: cannot create directory '${raw}': File exists`);
+      if (!isDirectory(repo, p)) repo.worktree.dirs.push(p);
+    }
+  },
 };
 
 const pwd: CommandSpec = {
@@ -100,12 +149,9 @@ const cd: CommandSpec = {
   handler: ({ world, args }) => {
     const target = args.positionals[0];
     if (!target || target === '~' || target === '.' || target === '..' || target === '/project') return;
-    const files = world.local.worktree.files;
-    if (files[target] !== undefined) throw E.shell(`cd: ${target}: Not a directory`);
-    const prefix = target.replace(/\/$/, '') + '/';
-    if (!Object.keys(files).some((p) => p.startsWith(prefix))) {
-      throw E.shell(`cd: ${target}: No such file or directory`);
-    }
+    const repo = world.local;
+    if (repo.worktree.files[target] !== undefined) throw E.shell(`cd: ${target}: Not a directory`);
+    if (!isDirectory(repo, target)) throw E.shell(`cd: ${target}: No such file or directory`);
   },
 };
 
@@ -118,6 +164,7 @@ const cp: CommandSpec = {
     const content = world.local.worktree.files[src];
     if (content === undefined) throw E.shell(`cp: cannot stat '${src}': No such file or directory`);
     world.local.worktree.files[dest] = content;
+    pruneDirs(world.local, dest);
     out.event({ type: 'file-written', path: dest });
   },
 };
@@ -132,6 +179,7 @@ const mv: CommandSpec = {
     if (content === undefined) throw E.shell(`mv: cannot stat '${src}': No such file or directory`);
     delete world.local.worktree.files[src];
     world.local.worktree.files[dest] = content;
+    pruneDirs(world.local, dest);
     out.event({ type: 'file-written', path: src });
     out.event({ type: 'file-written', path: dest });
   },

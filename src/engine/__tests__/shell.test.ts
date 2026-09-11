@@ -23,6 +23,14 @@ describe('cd', () => {
     expect(r.exitCode).toBe(0);
   });
 
+  it('accepts a directory that mkdir just created and is still empty', () => {
+    // Regression: mkdir used to be a pure no-op, so cd right after it always
+    // failed with "No such file or directory" even though mkdir had just "succeeded".
+    const w = run(['mkdir a']);
+    const r = exec(w, 'cd a');
+    expect(r.exitCode).toBe(0);
+  });
+
   it('refuses a plain file', () => {
     const w = run(['touch notes.md']);
     const r = exec(w, 'cd notes.md');
@@ -34,6 +42,51 @@ describe('cd', () => {
     const r = exec(emptyWorld(), 'cd nowhere');
     expect(r.exitCode).not.toBe(0);
     expect(r.stderr.join('\n')).toContain('No such file or directory');
+  });
+});
+
+describe('mkdir', () => {
+  it('shows up in ls, with a trailing slash, while still empty', () => {
+    const w = run(['mkdir a']);
+    const r = exec(w, 'ls');
+    expect(r.stdout).toEqual(['a/']);
+  });
+
+  it('is idempotent', () => {
+    const w = run(['mkdir a']);
+    const r = exec(w, 'mkdir a');
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('refuses a name already taken by a file', () => {
+    const w = run(['touch a']);
+    const r = exec(w, 'mkdir a');
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr.join('\n')).toContain('File exists');
+  });
+
+  it('stops showing up on its own in ls once a file exists inside it', () => {
+    const w = run(['mkdir a', 'touch a/file.txt']);
+    const r = exec(w, 'ls');
+    expect(r.stdout).toEqual(['a/file.txt']);
+  });
+});
+
+describe('rm and directories', () => {
+  it('refuses to remove an empty directory without -r', () => {
+    const w = run(['mkdir a']);
+    const r = exec(w, 'rm a');
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr.join('\n')).toContain('Is a directory');
+  });
+
+  it('removes an empty directory with -r, and cd into it fails afterward', () => {
+    let w = run(['mkdir a']);
+    const removed = exec(w, 'rm -r a');
+    expect(removed.exitCode).toBe(0);
+    w = removed.world;
+    const r = exec(w, 'cd a');
+    expect(r.exitCode).not.toBe(0);
   });
 });
 

@@ -48,8 +48,11 @@ export type Stage = 0 | 1 | 2 | 3;
 export interface IndexEntry { path: string; oid: Oid; mode: TreeEntryMode; stage: Stage }
 export interface Index { entries: IndexEntry[] }
 
-/** path -> content. A deleted file is an absent key. */
-export interface WorkTree { files: Record<string, string> }
+/** path -> content. A deleted file is an absent key. `dirs` remembers empty
+ *  directories `mkdir` created that no file has (yet) implied a prefix for —
+ *  git itself doesn't track these, but a shell that pretends `mkdir` did
+ *  nothing would make `cd` into it fail right after. */
+export interface WorkTree { files: Record<string, string>; dirs: string[] }
 
 export interface Config {
   'user.name': string;

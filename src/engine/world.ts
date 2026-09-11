@@ -12,7 +12,7 @@ export function emptyRepo(opts: { bare?: boolean; initialized?: boolean } = {}):
     objects: {},
     refs: {},
     index: emptyIndex(),
-    worktree: { files: {} },
+    worktree: { files: {}, dirs: [] },
     reflogs: {},
     stash: [],
     operation: { kind: 'none' },
