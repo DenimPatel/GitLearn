@@ -107,7 +107,7 @@ describe('clone', () => {
   it('brings down the whole history and sets up tracking', () => {
     const w = published();
     // Start over from an empty world that still has the same origin attached.
-    const fresh = { local: { ...w.local }, origin: w.origin, hosting: w.hosting };
+    const fresh = { local: { ...w.local }, origin: w.origin, hosting: w.hosting, history: w.history };
     const cloned = run(['git clone https://github.com/you/project.git'], fresh as typeof w);
     expect(cloned.local.worktree.files['README.md']).toBeDefined();
     expect(cloned.local.upstream['refs/heads/main']).toBe('refs/remotes/origin/main');

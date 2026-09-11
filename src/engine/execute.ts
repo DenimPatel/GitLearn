@@ -65,6 +65,7 @@ export function execute(world: World, command: string): CommandResult {
         w.local.clock = now;
         w.origin.clock = now;
       }
+      w.history.push(trimmed);
     });
     return { world: next, command, stdout, stderr, exitCode, events };
   } catch (err) {

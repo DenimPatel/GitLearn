@@ -86,6 +86,121 @@ const mkdir: CommandSpec = {
   handler: () => {},
 };
 
-// `clear` is handled by the terminal itself, before the engine ever sees it.
+const pwd: CommandSpec = {
+  name: 'pwd', namespace: 'shell', summary: 'Print the working directory',
+  syntax: 'pwd', flags: [], concepts: ['working-directory'],
+  handler: ({ out }) => { out.line('/project'); },
+};
 
-register(touch, echo, cat, ls, rm, mkdir);
+const cd: CommandSpec = {
+  name: 'cd', namespace: 'shell',
+  summary: 'Change directory (there is only one working directory here)',
+  syntax: 'cd [dir]', flags: [], concepts: ['working-directory'],
+  // Directories are just path prefixes, so this can only ever check that one exists.
+  handler: ({ world, args }) => {
+    const target = args.positionals[0];
+    if (!target || target === '~' || target === '.' || target === '..' || target === '/project') return;
+    const files = world.local.worktree.files;
+    if (files[target] !== undefined) throw E.shell(`cd: ${target}: Not a directory`);
+    const prefix = target.replace(/\/$/, '') + '/';
+    if (!Object.keys(files).some((p) => p.startsWith(prefix))) {
+      throw E.shell(`cd: ${target}: No such file or directory`);
+    }
+  },
+};
+
+const cp: CommandSpec = {
+  name: 'cp', namespace: 'shell', summary: 'Copy a file',
+  syntax: 'cp <src> <dest>', flags: [], concepts: ['working-directory'],
+  handler: ({ world, args, out }) => {
+    const [src, dest] = args.positionals;
+    if (!src || !dest) throw E.shell('cp: missing file operand');
+    const content = world.local.worktree.files[src];
+    if (content === undefined) throw E.shell(`cp: cannot stat '${src}': No such file or directory`);
+    world.local.worktree.files[dest] = content;
+    out.event({ type: 'file-written', path: dest });
+  },
+};
+
+const mv: CommandSpec = {
+  name: 'mv', namespace: 'shell', summary: 'Move or rename a file',
+  syntax: 'mv <src> <dest>', flags: [], concepts: ['working-directory'],
+  handler: ({ world, args, out }) => {
+    const [src, dest] = args.positionals;
+    if (!src || !dest) throw E.shell('mv: missing file operand');
+    const content = world.local.worktree.files[src];
+    if (content === undefined) throw E.shell(`mv: cannot stat '${src}': No such file or directory`);
+    delete world.local.worktree.files[src];
+    world.local.worktree.files[dest] = content;
+    out.event({ type: 'file-written', path: src });
+    out.event({ type: 'file-written', path: dest });
+  },
+};
+
+const less: CommandSpec = {
+  name: 'less', namespace: 'shell', summary: 'Page through a file’s contents (shown all at once here)',
+  syntax: 'less <file>', flags: [], concepts: ['working-directory'],
+  handler: ({ world, args, out }) => {
+    const p = args.positionals[0];
+    if (!p) throw E.shell('less: missing file operand');
+    const content = world.local.worktree.files[p];
+    if (content === undefined) throw E.shell(`${p}: No such file or directory`);
+    out.line(...(content === '' ? [] : content.replace(/\n$/, '').split('\n')));
+  },
+};
+
+const grep: CommandSpec = {
+  name: 'grep', namespace: 'shell', summary: 'Search files for lines matching a pattern',
+  syntax: 'grep [-inr] <pattern> <file>...',
+  flags: [
+    { long: 'ignore-case', short: 'i', arg: 'none' },
+    { long: 'line-number', short: 'n', arg: 'none' },
+    { long: 'recursive', short: 'r', arg: 'none' },
+  ],
+  concepts: ['working-directory'],
+  handler: ({ world, args, out }) => {
+    const [pattern, ...targets] = args.positionals;
+    if (!pattern || !targets.length) throw E.shell('usage: grep [-inr] <pattern> <file>...');
+    const files = world.local.worktree.files;
+    const recursive = args.flags.recursive !== undefined;
+    let paths: string[];
+    if (recursive) {
+      const prefixes = targets.map((t) => t.replace(/\/$/, '') + '/');
+      paths = Object.keys(files).filter((p) => prefixes.some((pre) => p.startsWith(pre))).sort();
+    } else {
+      for (const t of targets) {
+        if (files[t] === undefined) throw E.shell(`grep: ${t}: No such file or directory`);
+      }
+      paths = targets;
+    }
+
+    const ignoreCase = args.flags['ignore-case'] !== undefined ? 'i' : '';
+    let re: RegExp;
+    try { re = new RegExp(pattern, ignoreCase); }
+    catch { re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), ignoreCase); }
+
+    const showPath = paths.length > 1 || recursive;
+    const showLine = args.flags['line-number'] !== undefined;
+    for (const p of paths) {
+      const lines = (files[p] ?? '').replace(/\n$/, '').split('\n');
+      lines.forEach((line, i) => {
+        if (!re.test(line)) return;
+        out.line(`${showPath ? `${p}:` : ''}${showLine ? `${i + 1}:` : ''}${line}`);
+      });
+    }
+  },
+};
+
+const history: CommandSpec = {
+  name: 'history', namespace: 'shell', summary: 'List recently executed commands',
+  syntax: 'history', flags: [{ long: 'clear', short: 'c', arg: 'none' }],
+  concepts: ['working-directory'],
+  handler: ({ world, args, out }) => {
+    if (args.flags.clear !== undefined) { world.history.length = 0; return; }
+    world.history.forEach((cmd, i) => out.line(`${i + 1}  ${cmd}`));
+  },
+};
+
+// `clear`/`reset` are handled by the terminal itself, before the engine ever sees them.
+
+register(touch, echo, cat, ls, rm, mkdir, pwd, cd, cp, mv, less, grep, history);

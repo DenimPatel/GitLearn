@@ -37,7 +37,7 @@ export function useEngine(initial: World = emptyWorld()) {
     const trimmed = command.trim();
     if (!trimmed) return null;
 
-    if (trimmed === 'clear') {
+    if (trimmed === 'clear' || trimmed === 'reset') {
       setEntries([]);
       return null;
     }

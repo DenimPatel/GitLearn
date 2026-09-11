@@ -116,6 +116,8 @@ export interface World {
   local: Repository;
   origin: Repository | null;
   hosting: { pullRequests: PullRequest[] };
+  /** Every command line that has run successfully, oldest first — what `history` reads. */
+  history: string[];
 }
 
 /** Emitted by handlers so the UI can animate exactly what moved, and so lesson
