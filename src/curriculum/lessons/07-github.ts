@@ -190,4 +190,53 @@ There are three ways a PR can land, and they produce different histories:
     ],
     outro: 'That is the complete loop. Everything else is a variation on it.',
   },
+  {
+    id: 'squash-merging-a-pr',
+    module: 'github',
+    title: 'Squash-merging a pull request',
+    idea: 'Three noisy commits become one clean commit on main — chosen at merge time.',
+    intro: `This branch has three commits that tell the story of writing the code
+(\`add login\`, \`fix\`, \`wip\`) but are not a useful history for main.
+
+Squash-merging collapses all three into a single commit on main, titled after the
+pull request. The branch’s own commits never land. Compare with a merge commit,
+which would keep all three plus a merge; and with a rebase merge, which would keep
+all three but replay them linearly.
+
+The choice is made at merge time, and it is what makes main readable.`,
+    scenario: 'feature-pushed-messy',
+    concepts: ['squash-merge', 'pull-request', 'merge-strategies'],
+    steps: [
+      {
+        id: 'open',
+        goal: 'Open the pull request for add-login.',
+        suggested: ['gh pr create --title "Add login"'],
+        hints: ['`gh pr create --title "Add login"`.'],
+        check: c.prOpen(),
+      },
+      {
+        id: 'merge',
+        goal: 'Land it with a squash merge.',
+        detail: 'Read the output: main on the server now has exactly one new commit.',
+        suggested: ['gh pr merge --squash'],
+        hints: ['Add `--squash` to `gh pr merge`.'],
+        check: c.prMergedSquash(),
+      },
+      {
+        id: 'sync',
+        goal: 'Pull the squashed commit into your local main.',
+        suggested: ['git switch main', 'git pull'],
+        hints: ['`git switch main`, then `git pull`.'],
+        check: c.all(c.onBranch('main'), c.commitCount(2)),
+      },
+      {
+        id: 'compare',
+        goal: 'See the tidy main against the still-messy branch.',
+        suggested: ['git log --oneline --all'],
+        hints: ['`git log --oneline --all` shows the branch commits that did not land.'],
+        check: c.ranCommand(/^git log --oneline --all/),
+      },
+    ],
+    outro: 'main gets one comprehensible commit; the branch’s working history is discarded.',
+  },
 ];

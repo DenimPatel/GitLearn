@@ -1,6 +1,6 @@
 import { register, requireRepo, type CommandSpec } from '../registry';
 import { E } from '../errors';
-import { flagValues, hasFlag } from '../parseArgs';
+import { flagValue, flagValues, hasFlag } from '../parseArgs';
 import { initRepo } from '../world';
 import {
   HEAD, currentBranchName, headOid, headLabel, isDetached, resolveSymbolic,
@@ -11,7 +11,7 @@ import {
   hasUnmerged, indexFlat, indexRemove, indexSet, unmergedPaths,
 } from '../gitIndex';
 import { flatTreeOfCommit, flattenTree, writeTreeFromIndex } from '../trees';
-import { revParse } from '../revparse';
+import { revParse, commitRange } from '../revparse';
 import { blobFromWorktree, ignored, worktreeFlat } from '../worktree';
 import { renderStatus, status } from '../status';
 import { signature, formatDate } from '../clock';
@@ -107,12 +107,14 @@ const commit: CommandSpec = {
     { long: 'amend', arg: 'none' },
     { long: 'allow-empty', arg: 'none' },
     { long: 'no-edit', arg: 'none' },
+    { long: 'fixup', arg: 'required' },
   ],
   concepts: ['commit-object', 'snapshot', 'index', 'branch-advance'],
   handler: ({ world, args, out }) => {
     const repo = requireRepo(world);
     if (repo.operation.kind === 'rebase') throw E.cannotCommitDuringRebase();
     if (hasUnmerged(repo.index)) throw E.unmergedFiles();
+    if (!repo.config['user.name'] || !repo.config['user.email']) throw E.identityUnknown();
 
     if (args.flags.all !== undefined) {
       // -a stages modifications and deletions of already-tracked paths only.
@@ -140,6 +142,10 @@ const commit: CommandSpec = {
     let message = messages.join('\n\n');
     if (!message && merging) message = (repo.operation as { message: string }).message;
     if (!message && amend) message = readCommit(repo, head!).message;
+    // `commit --fixup <commit>` is a note to your future self: the subject marks
+    // which commit this one belongs on top of, for `rebase --autosquash` to move.
+    const fixupTarget = flagValue(args, 'fixup');
+    if (fixupTarget) message = `fixup! ${firstLine(readCommit(repo, revParse(repo, fixupTarget)).message)}`;
     if (!message) throw E.emptyCommitMessage();
 
     const author = amend ? readCommit(repo, head!).author : signature(repo);
@@ -207,24 +213,47 @@ const log: CommandSpec = {
     { long: 'all', arg: 'none' },
     { long: 'max-count', short: 'n', arg: 'required' },
     { long: 'stat', arg: 'none' },
+    { long: 'patch', short: 'p', arg: 'none' },
+    { long: 'author', arg: 'required' },
+    { long: 'pickaxe', short: 'S', arg: 'required' },
   ],
   concepts: ['history', 'dag', 'parent'],
   handler: ({ world, args, out }) => {
     const repo = requireRepo(world);
-    const head = headOid(repo);
-    const tips: Oid[] = args.flags.all !== undefined
-      ? Object.values(repo.refs)
-          .filter((r): r is { kind: 'direct'; target: Oid } => r.kind === 'direct')
-          .map((r) => r.target)
-      : head ? [head] : [];
-    if (!tips.length) throw E.noCommitsYet();
+    let commits: Oid[];
+    if (args.positionals.length) {
+      commits = commitsForRevisions(repo, args.positionals);
+    } else {
+      const head = headOid(repo);
+      const tips: Oid[] = args.flags.all !== undefined
+        ? Object.values(repo.refs)
+            .filter((r): r is { kind: 'direct'; target: Oid } => r.kind === 'direct')
+            .map((r) => r.target)
+        : head ? [head] : [];
+      if (!tips.length) throw E.noCommitsYet();
+      commits = walkHistory(repo, tips);
+    }
 
-    let commits = walkHistory(repo, tips);
+    const author = flagValue(args, 'author');
+    if (author) {
+      const needle = author.toLowerCase();
+      commits = commits.filter((oid) => {
+        const a = readCommit(repo, oid).author;
+        return a.name.toLowerCase().includes(needle) || a.email.toLowerCase().includes(needle);
+      });
+    }
+
+    // Pickaxe: keep only commits whose change adds or removes the given string.
+    // Comparing against the first parent is the standard simplification.
+    const pickaxe = flagValue(args, 'pickaxe');
+    if (pickaxe) commits = commits.filter((oid) => commitTouches(repo, oid, pickaxe));
+
     const limit = args.flags['max-count'];
     if (Array.isArray(limit)) commits = commits.slice(0, parseInt(limit[0], 10));
 
     const oneline = args.flags.oneline !== undefined;
     const graph = args.flags.graph !== undefined;
+    const patch = args.flags.patch !== undefined;
     const prefix = graph ? '* ' : '';
 
     for (const oid of commits) {
@@ -241,9 +270,66 @@ const log: CommandSpec = {
         for (const l of c.message.split('\n')) out.line(`    ${l}`);
         out.line('');
       }
+      if (patch) out.line(...diffOfCommit(repo, oid));
     }
   },
 };
+
+/** The unified diff a commit introduced, against its first parent. */
+function diffOfCommit(repo: Repository, oid: Oid): string[] {
+  const c = readCommit(repo, oid);
+  const before = flatTreeOfCommit(repo, c.parents[0] ?? null);
+  const after = flatTreeOfCommit(repo, oid);
+  const lines: string[] = [];
+  for (const p of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
+    if (before[p] === after[p]) continue;
+    lines.push(...unifiedDiff(p,
+      before[p] ? readBlob(repo, before[p]).content : '',
+      after[p] ? readBlob(repo, after[p]).content : '').hunks);
+  }
+  return lines;
+}
+
+/** Resolves `git log` positional revisions: `A`, `A..B` and `A...B`. */
+function commitsForRevisions(repo: Repository, revs: string[]): Oid[] {
+  if (revs.length === 1 && !revs[0].includes('..')) {
+    return walkHistory(repo, [revParse(repo, revs[0])]);
+  }
+  const selected = new Set<Oid>();
+  for (const rev of revs) {
+    if (rev.includes('...')) {
+      const [a, b] = rev.split('...');
+      const ao = revParse(repo, a || 'HEAD');
+      const bo = revParse(repo, b || 'HEAD');
+      commitRange(repo, ao, bo).forEach((o) => selected.add(o));
+      commitRange(repo, bo, ao).forEach((o) => selected.add(o));
+    } else if (rev.includes('..')) {
+      const [a, b] = rev.split('..');
+      const ao = revParse(repo, a || 'HEAD');
+      const bo = revParse(repo, b || 'HEAD');
+      commitRange(repo, ao, bo).forEach((o) => selected.add(o));
+    } else {
+      walkHistory(repo, [revParse(repo, rev)]).forEach((o) => selected.add(o));
+    }
+  }
+  // Newest first, matching the order walkHistory would give.
+  return [...selected].sort((a, b) =>
+    readCommit(repo, b).committer.timestamp - readCommit(repo, a).committer.timestamp || (a < b ? -1 : 1));
+}
+
+/** True when a commit's change adds or removes a line containing `needle`. */
+function commitTouches(repo: Repository, oid: Oid, needle: string): boolean {
+  const c = readCommit(repo, oid);
+  const before = flatTreeOfCommit(repo, c.parents[0] ?? null);
+  const after = flatTreeOfCommit(repo, oid);
+  for (const p of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (before[p] === after[p]) continue;
+    const a = before[p] ? readBlob(repo, before[p]).content : '';
+    const b = after[p] ? readBlob(repo, after[p]).content : '';
+    if (a.includes(needle) !== b.includes(needle)) return true;
+  }
+  return false;
+}
 
 function decorate(repo: Repository, oid: Oid): string {
   const refs = refsAt(repo, oid);

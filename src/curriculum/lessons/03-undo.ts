@@ -324,4 +324,65 @@ almost always recoverable. Let's lose something on purpose and get it back.`,
     outro:
       'Nothing you commit is ever really lost. That is worth remembering the next time Git looks like it has eaten your work.',
   },
+  {
+    id: 'cleaning-untracked',
+    module: 'undo',
+    title: 'Throwing away what was never tracked',
+    idea: '`restore` can only bring back a copy Git has. Untracked files have no copy — that is `clean`.',
+    intro: `The undo commands you have learned all work from a copy Git holds: the
+index, or a commit. \`git restore\` copies from there back into your working
+tree.
+
+An **untracked** file has no such copy. Git has never seen it, so there is
+nothing to restore from. The command for deleting untracked files is
+\`git clean\`, and it is deliberately hard to fire accidentally: without \`-f\`
+(or a dry run) it refuses.
+
+Run \`git clean -n\` first. It is a dry run: it prints exactly what \`-f\` would
+remove, and removes nothing.`,
+    scenario: 'untracked-mess',
+    concepts: ['untracked', 'undo', 'gitignore'],
+    steps: [
+      {
+        id: 'status',
+        goal: 'See what is untracked.',
+        detail: 'notes.txt is untracked. debug.log does not even appear — .gitignore hides it.',
+        suggested: ['git status'],
+        hints: ['`git status`.'],
+        check: c.hasUntracked('notes.txt'),
+      },
+      {
+        id: 'restore-fails',
+        goal: 'Try to discard notes.txt with `restore` — and read the refusal.',
+        detail: 'Git cannot restore what it never had.',
+        suggested: ['git restore notes.txt'],
+        hints: ['It is supposed to fail. That is the point.'],
+        check: c.ranCommandFailing(/git restore notes\.txt/),
+      },
+      {
+        id: 'dry-run',
+        goal: 'Preview what clean would delete.',
+        suggested: ['git clean -n'],
+        hints: ['`git clean -n` removes nothing.'],
+        check: c.ranCommand(/^git clean -n/),
+      },
+      {
+        id: 'force',
+        goal: 'Actually remove the untracked file.',
+        suggested: ['git clean -f'],
+        hints: ['`-f` is required; `-n` alone will not delete.'],
+        check: c.all(c.fileAbsent('notes.txt'), c.noUntracked()),
+      },
+      {
+        id: 'ignored',
+        goal: 'Also remove the ignored log file.',
+        detail: '`-x` extends clean to files .gitignore hides. Use it with care — ignored files often include local config.',
+        suggested: ['git clean -fx'],
+        hints: ['`-x` includes ignored paths.'],
+        check: c.fileAbsent('debug.log'),
+      },
+    ],
+    outro: `Two different tools for two different situations: \`restore\` for tracked
+content, \`clean\` for everything else.`,
+  },
 ];

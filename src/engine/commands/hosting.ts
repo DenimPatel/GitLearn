@@ -1,9 +1,10 @@
 import { register, requireRepo, type CommandSpec } from '../registry';
 import { E } from '../errors';
-import { branchRef, currentBranchName, resolveRefToOid, walkHistory } from '../refs';
+import { branchRef, currentBranchName, remoteRef, resolveRefToOid, walkHistory } from '../refs';
 import { firstLine, readCommit, short, writeObject } from '../objects';
 import { mergeBase } from '../merge/mergeBase';
 import { mergeTrees } from '../merge/mergeTrees';
+import { applyCommit } from '../merge/apply';
 import { flattenTree, treeOfCommit, writeFlatTree } from '../trees';
 import { signature } from '../clock';
 import { requireOrigin } from './remotes';
@@ -25,6 +26,8 @@ const gh: CommandSpec = {
     { long: 'title', short: 't', arg: 'required' },
     { long: 'base', short: 'B', arg: 'required' },
     { long: 'squash', arg: 'none' },
+    { long: 'rebase', arg: 'none' },
+    { long: 'delete-branch', short: 'd', arg: 'none' },
   ],
   concepts: ['pull-request', 'code-review', 'github-flow'],
   handler: ({ world, args, out }) => {
@@ -90,31 +93,60 @@ const gh: CommandSpec = {
       const targetTip = resolveRefToOid(origin, branchRef(target.targetBranch));
       if (!sourceTip || !targetTip) throw E.shell('a branch in this pull request is missing on the remote');
 
-      // The merge happens on the server. Your local repo learns nothing until you fetch.
-      const base = mergeBase(origin, targetTip, sourceTip);
-      const result = mergeTrees(origin, base, targetTip, sourceTip, target.targetBranch, target.sourceBranch);
-      if (result.conflicts.length) {
-        out.line(`Pull request #${target.id} has conflicts and cannot be merged automatically.`);
-        out.exit(1);
-        return;
+      // The landing strategy is chosen here. Merge, squash and rebase produce
+      // three visibly different histories from the same PR — which is the lesson.
+      let oid: Oid;
+      if (args.flags.rebase !== undefined) {
+        // Rebase landing: replay each PR commit onto the target, one by one.
+        let tip = targetTip;
+        for (const commit of [...target.commits].reverse()) {
+          const original = readCommit(origin, commit);
+          const result = applyCommit(origin, tip, commit, target.targetBranch, target.sourceBranch);
+          if (result.conflicts.length) {
+            throw E.shell(`pull request #${target.id} cannot be rebase-merged automatically (conflicts)`);
+          }
+          const tree = writeFlatTree(origin, result.merged);
+          tip = writeObject(origin, {
+            type: 'commit', tree, parents: [tip],
+            author: original.author, committer: signature(origin), message: original.message,
+          });
+        }
+        oid = tip;
+      } else {
+        const base = mergeBase(origin, targetTip, sourceTip);
+        const result = mergeTrees(origin, base, targetTip, sourceTip, target.targetBranch, target.sourceBranch);
+        if (result.conflicts.length) {
+          out.line(`Pull request #${target.id} has conflicts and cannot be merged automatically.`);
+          out.exit(1);
+          return;
+        }
+        const tree = writeFlatTree(origin, result.merged);
+        const squash = args.flags.squash !== undefined;
+        const parents: Oid[] = squash ? [targetTip] : [targetTip, sourceTip];
+        const message = squash
+          ? `${target.title} (#${target.id})`
+          : `Merge pull request #${target.id} from ${target.sourceBranch}\n\n${target.title}`;
+        oid = writeObject(origin, {
+          type: 'commit', tree, parents,
+          author: signature(origin), committer: signature(origin), message,
+        });
       }
-      const tree = writeFlatTree(origin, result.merged);
-      const squash = args.flags.squash !== undefined;
-      const parents: Oid[] = squash ? [targetTip] : [targetTip, sourceTip];
-      const message = squash
-        ? `${target.title} (#${target.id})`
-        : `Merge pull request #${target.id} from ${target.sourceBranch}\n\n${target.title}`;
-      const oid = writeObject(origin, {
-        type: 'commit', tree, parents,
-        author: signature(origin), committer: signature(origin), message,
-      });
       origin.refs[branchRef(target.targetBranch)] = { kind: 'direct', target: oid };
       target.status = 'merged';
+      target.mergeStrategy = args.flags.rebase !== undefined
+        ? 'rebase'
+        : args.flags.squash !== undefined ? 'squash' : 'merge';
 
       out.line(
         `Merged pull request #${target.id} (${short(oid)}).`,
         `Your local '${target.targetBranch}' does not know about this yet — run: git pull origin ${target.targetBranch}`,
       );
+      if (args.flags['delete-branch'] !== undefined) {
+        // --delete-branch also cleans up the remote-tracking ref on your side.
+        delete origin.refs[branchRef(target.sourceBranch)];
+        delete world.local.refs[remoteRef('origin', target.sourceBranch)];
+        out.line(`Deleted branch ${target.sourceBranch}.`);
+      }
       out.event({ type: 'pr-merged', id: target.id });
       return;
     }

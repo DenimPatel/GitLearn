@@ -13,8 +13,8 @@ export function tick(repo: Repository): number {
 
 export function signature(repo: Repository): Signature {
   return {
-    name: repo.config['user.name'],
-    email: repo.config['user.email'],
+    name: repo.config['user.name'] || 'You',
+    email: repo.config['user.email'] || 'you@example.com',
     timestamp: tick(repo),
     tzOffset: '+0000',
   };

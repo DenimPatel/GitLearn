@@ -65,7 +65,7 @@ export interface ReflogEntry {
   message: string;
 }
 
-export interface RebaseStep { action: 'pick' | 'squash' | 'drop' | 'reword'; oid: Oid; label: string }
+export interface RebaseStep { action: 'pick' | 'squash' | 'drop' | 'reword' | 'fixup'; oid: Oid; label: string }
 
 /** What real git keeps in .git/MERGE_HEAD, CHERRY_PICK_HEAD, rebase-merge/ etc. */
 export type Operation =
@@ -85,6 +85,18 @@ export type Operation =
 
 export interface StashEntry { oid: Oid; message: string }
 
+/** Persistent `git bisect` state. Always present (never undefined) because worlds
+ *  are deep-compared and serialized; an absent field on one path would make
+ *  otherwise-identical worlds unequal. */
+export interface BisectState {
+  good: Oid[];
+  bad: Oid | null;
+  remaining: Oid[];
+  current: Oid | null;
+  origHead: Oid | null;
+  origBranch: RefName | null;
+}
+
 export interface RemoteConfig { url: string }
 
 export interface Repository {
@@ -101,6 +113,7 @@ export interface Repository {
   remotes: Record<string, RemoteConfig>;
   upstream: Record<RefName, RefName>; // refs/heads/main -> refs/remotes/origin/main
   clock: number; // virtual seconds
+  bisect: BisectState;
 }
 
 export interface PullRequest {
@@ -110,6 +123,8 @@ export interface PullRequest {
   targetBranch: string;
   status: 'open' | 'merged' | 'closed';
   commits: Oid[];
+  /** How it landed, once merged: a merge commit, a squash, or a rebase. */
+  mergeStrategy?: 'merge' | 'squash' | 'rebase';
 }
 
 export interface World {

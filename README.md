@@ -8,7 +8,7 @@ commit graph and the remote — all on screen at once.
 
 ## What it teaches
 
-43 lessons across 8 modules, sequenced by mental model rather than by command.
+71 lessons across 12 modules, sequenced by mental model rather than by command.
 Each command is introduced as the answer to a question you already feel, and the
 whole curriculum is organised around five ideas:
 
@@ -20,10 +20,20 @@ whole curriculum is organised around five ideas:
 
 It runs from "why does version control exist" through staging, hashing,
 diffing, the undo family (restore, reset's three modes, revert, detached HEAD,
-reflog recovery), branching, real merge conflicts, rebase and cherry-pick,
-stash and tags, remotes, fetch-vs-pull, rejected pushes, and the GitHub
-pull-request workflow — ending in a concept map of everything covered, ticked
-off as you actually practise it rather than merely read it.
+reflog recovery, and `git clean` for what was never tracked), branching, real
+merge conflicts, rebase and cherry-pick, `commit --fixup` with
+`rebase --autosquash`, stash and tags, configuration and aliases, remotes,
+fetch-vs-pull, rejected pushes and `--force-with-lease`, and the GitHub
+pull-request workflow with all three landing strategies.
+
+Then it goes further: **investigating history** (`blame`, the pickaxe,
+`describe`, `shortlog`, `fsck` and a real `bisect`), **teamwork** (commit-message
+craft, branch hygiene, forks), **scale and hygiene** (secrets in history, line
+endings, and field guides to worktrees, sparse-checkout and partial clones), and
+**modern Git** (`switch`/`restore` over `checkout`, `init.defaultBranch`, Git 3.0
+defaults, config-based hooks and commit signing) — ending in a concept map of
+everything covered, ticked off as you actually practise it rather than merely
+read it.
 
 ## What makes the simulator honest
 
@@ -55,7 +65,7 @@ three-way merges are distinguished. Nothing is faked.
 ```bash
 npm install
 npm run dev      # http://localhost:5173/GitLearn/
-npm test         # 115 engine + curriculum tests
+npm test         # 202 engine + curriculum tests
 npm run build    # type-check and build to dist/
 ```
 
@@ -86,5 +96,10 @@ and the simulator independently verifiable.
 - **Commands** are registered in `src/engine/commands/`; each declares its flags,
   its summary and the concepts it exercises.
 
-Non-goals, deliberately: packfiles, compression, real networking, submodules,
-hooks, bisect. `git: '<x>' is not a git command` is a fine answer.
+Non-goals, deliberately: packfiles and compression, real networking, submodules
+and Git LFS (separate object stores), sparse-checkout and partial-clone
+transfers, hook execution, and the cryptography of commit signing. Where a
+feature is real but not simulated, it is taught as an honest field guide with
+the commands you would run on a real checkout — see the `scale` and `modern`
+modules, which end with an explicit list of what this engine does and does not
+model. `git: '<x>' is not a git command` is a fine answer.

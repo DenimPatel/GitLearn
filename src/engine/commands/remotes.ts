@@ -151,13 +151,29 @@ const push: CommandSpec = {
   flags: [
     { long: 'set-upstream', short: 'u', arg: 'none' },
     { long: 'force', short: 'f', arg: 'none' },
+    { long: 'force-with-lease', arg: 'none' },
     { long: 'delete', short: 'd', arg: 'none' },
   ],
-  concepts: ['push', 'non-fast-forward', 'remote-tracking-ref', 'upstream'],
+  concepts: ['push', 'non-fast-forward', 'remote-tracking-ref', 'upstream', 'force-push'],
   handler: ({ world, args, out }) => {
     const repo = requireRepo(world);
     const origin = requireOrigin(world);
     const url = repo.remotes.origin.url;
+
+    // Deleting a remote branch is a push in reverse, and has nothing to do with
+    // your local branches — the hosting provider usually offers it after a merge.
+    if (args.flags.delete !== undefined) {
+      const name = args.positionals[1] ?? currentBranchName(repo);
+      if (!name) throw E.noCommitsYet();
+      if (!origin.refs[branchRef(name)]) throw E.branchNotFound(name);
+      delete origin.refs[branchRef(name)];
+      if (resolveSymbolic(origin, HEAD) === branchRef(name)) delete origin.refs[HEAD];
+      delete repo.refs[remoteRef('origin', name)];
+      out.line(`To ${url}`, ` - [deleted]         ${name}`);
+      out.event({ type: 'ref-deleted', ref: branchRef(name) });
+      return;
+    }
+
     const branch = args.positionals[1] ?? currentBranchName(repo);
     if (!branch) throw E.noCommitsYet();
 
@@ -171,8 +187,21 @@ const push: CommandSpec = {
 
     const remoteTip = resolveRefToOid(origin, localRef);
     const force = args.flags.force !== undefined;
+    const lease = args.flags['force-with-lease'] !== undefined;
     // Reject unless we're strictly ahead: the remote has work we don't have.
-    if (remoteTip && !force && !isAncestor(repo, remoteTip, localTip)) {
+    const needsForce = !!remoteTip && !isAncestor(repo, remoteTip, localTip);
+
+    // --force-with-lease is the safe force: it only overwrites if the remote is
+    // exactly where *you* last saw it. If a teammate moved it since your last
+    // fetch, your cached refs/remotes/origin/<branch> is stale and the push is
+    // refused — which is the whole point, because --force would have destroyed
+    // their commit.
+    if (lease && needsForce) {
+      const tracking = resolveRefToOid(repo, remoteRef('origin', branch));
+      if (tracking !== remoteTip) throw E.staleInfo(branch, url);
+    }
+
+    if (needsForce && !force && !lease) {
       throw E.nonFastForward(branch, url);
     }
 
@@ -193,7 +222,7 @@ const push: CommandSpec = {
     if (args.flags['set-upstream'] !== undefined) {
       out.line(`branch '${branch}' set up to track 'origin/${branch}'.`);
     }
-    out.event({ type: 'pushed', ref: localRef, forced: force });
+    out.event({ type: 'pushed', ref: localRef, forced: needsForce && (force || lease) });
   },
 };
 

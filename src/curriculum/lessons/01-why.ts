@@ -92,4 +92,58 @@ there.** They are two separate things living in the same folder.`,
     outro: `You now have a repository with no history in it. The panel on the right shows
 the three places your work can live. Right now all three are empty.`,
   },
+  {
+    id: 'telling-git-who-you-are',
+    module: 'why',
+    title: 'Telling Git who you are',
+    idea: 'Your name and email are not an account — they are config keys stamped into each commit.',
+    intro: `Every commit records an author: a name, an email and a timestamp. Git
+does not verify any of it. It simply reads two configuration keys, \`user.name\`
+and \`user.email\`, and writes them into the commit object.
+
+That is why an unattended machine can produce commits "by" someone who never
+touched it — and why the first thing you do on a new computer is set these.
+
+This repository’s commits were all authored by the default identity. Change it,
+then make one more commit and watch the author change.`,
+    scenario: 'small-history',
+    concepts: ['config', 'identity', 'commit-object'],
+    steps: [
+      {
+        id: 'author',
+        goal: 'Look at who authored the latest commit.',
+        suggested: ['git log -n 1'],
+        hints: ['`git log -n 1` shows the full commit including the author.'],
+        check: c.ranCommand(/^git log -n 1/),
+      },
+      {
+        id: 'name',
+        goal: 'Set your name.',
+        detail: 'This writes the key `user.name`. Try it, then read it back with a get.',
+        suggested: ['git config user.name "Ada Lovelace"', 'git config user.name'],
+        hints: ['`git config user.name "Ada Lovelace"`.'],
+        check: c.configEquals('user.name', 'Ada Lovelace'),
+      },
+      {
+        id: 'email',
+        goal: 'Set your email.',
+        suggested: ['git config user.email "ada@example.com"'],
+        hints: ['`git config user.email "ada@example.com"`.'],
+        check: c.configEquals('user.email', 'ada@example.com'),
+      },
+      {
+        id: 'commit',
+        goal: 'Make a commit and see the new author attached to it.',
+        suggested: [
+          'echo "a note" > notes.txt',
+          'git add notes.txt',
+          'git commit -m "Add notes"',
+        ],
+        hints: ['Create a file, add it, and commit as usual.'],
+        check: c.authorOfHeadIs('Ada Lovelace'),
+      },
+    ],
+    outro: `Nothing about the *content* of a commit changed — only the metadata Git
+reads from config. That is the whole mechanism.`,
+  },
 ];

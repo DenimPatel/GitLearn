@@ -2,7 +2,8 @@
  *  idea in Git, named, grouped, and checkable — rather than a list of lessons. */
 
 export type ModuleId =
-  | 'why' | 'snapshots' | 'undo' | 'branching' | 'toolkit' | 'distributed' | 'github' | 'synthesis';
+  | 'why' | 'snapshots' | 'undo' | 'branching' | 'toolkit' | 'investigating'
+  | 'distributed' | 'github' | 'teamwork' | 'scale' | 'modern' | 'synthesis';
 
 export interface BigIdea { id: string; title: string; blurb: string }
 
@@ -47,6 +48,8 @@ export const CONCEPTS: Concept[] = [
   { id: 'version-control', label: 'Version control', blurb: 'Why keeping history beats keeping copies.', module: 'why', bigIdea: 'snapshot' },
   { id: 'repository', label: 'Repository', blurb: 'A project plus the database of its history.', module: 'why', bigIdea: 'snapshot' },
   { id: 'git-directory', label: 'The .git directory', blurb: 'Where the entire history actually lives.', module: 'why', bigIdea: 'snapshot' },
+  { id: 'config', label: 'Configuration', blurb: 'Git reads its defaults from a key-value store you control.', module: 'why', bigIdea: 'snapshot' },
+  { id: 'identity', label: 'Your identity', blurb: 'user.name and user.email are stamped into every commit you make.', module: 'why', bigIdea: 'snapshot' },
 
   // Snapshots and the three trees
   { id: 'working-directory', label: 'Working directory', blurb: 'The files you can actually see and edit.', module: 'snapshots', bigIdea: 'three-trees' },
@@ -91,12 +94,17 @@ export const CONCEPTS: Concept[] = [
   { id: 'rebase-rewrites-history', label: 'Rebase rewrites history', blurb: 'Same changes, new commits, new hashes.', module: 'branching', bigIdea: 'nothing-lost' },
   { id: 'linear-history', label: 'Merge vs rebase', blurb: 'Preserve what happened, or present a clean story.', module: 'branching', bigIdea: 'nothing-lost' },
   { id: 'cherry-pick', label: 'Cherry-pick', blurb: 'Copy one commit’s change somewhere else.', module: 'branching', bigIdea: 'nothing-lost' },
+  { id: 'squash-merge', label: 'Squash merging', blurb: 'Combine a branch into one staged change — no merge commit, no fast-forward.', module: 'branching', bigIdea: 'labels' },
 
   // Toolkit
   { id: 'stash', label: 'Stashing', blurb: 'Park uncommitted work to switch context safely.', module: 'toolkit', bigIdea: 'three-trees' },
   { id: 'tag', label: 'Tags', blurb: 'A permanent name for a commit — usually a release.', module: 'toolkit', bigIdea: 'labels' },
   { id: 'annotated-tag', label: 'Annotated vs lightweight tags', blurb: 'One is a real object with a message; one is just a ref.', module: 'toolkit', bigIdea: 'labels' },
   { id: 'interactive-rebase', label: 'Interactive rebase', blurb: 'Squash, reword and drop commits before review.', module: 'toolkit', bigIdea: 'nothing-lost' },
+
+  // Investigating history
+  { id: 'log-reading', label: 'Reading history as a graph', blurb: '--oneline, --graph, --all and ranges turn log into an X-ray.', module: 'investigating', bigIdea: 'labels' },
+  { id: 'code-archaeology', label: 'Code archaeology', blurb: 'blame, bisect, describe: who wrote it, what broke it, which release.', module: 'investigating', bigIdea: 'labels' },
 
   // Distributed
   { id: 'distributed', label: 'Distributed version control', blurb: 'Everyone has the full history; there is no privileged copy.', module: 'distributed', bigIdea: 'distributed' },
@@ -115,6 +123,27 @@ export const CONCEPTS: Concept[] = [
   { id: 'pull-request', label: 'Pull requests', blurb: 'A request to merge a branch, with a place to discuss it.', module: 'github', bigIdea: 'distributed' },
   { id: 'code-review', label: 'Review and iteration', blurb: 'Push more commits to the same branch; the PR follows.', module: 'github', bigIdea: 'distributed' },
   { id: 'merge-strategies', label: 'Merge, squash or rebase merge', blurb: 'Three ways a PR can land, with different histories.', module: 'github', bigIdea: 'distributed' },
+
+  // Teamwork
+  { id: 'force-push', label: 'Force-pushing safely', blurb: '--force overwrites; --force-with-lease refuses when you are behind.', module: 'teamwork', bigIdea: 'distributed' },
+  { id: 'commit-message', label: 'Commit messages', blurb: 'A subject, a blank line, a body that explains why.', module: 'teamwork', bigIdea: 'snapshot' },
+  { id: 'branch-hygiene', label: 'Branch hygiene', blurb: 'Delete merged branches, keep the graph readable.', module: 'teamwork', bigIdea: 'labels' },
+  { id: 'fork', label: 'Forks and upstreams', blurb: 'A fork is your copy of someone else’s repository.', module: 'teamwork', bigIdea: 'distributed' },
+
+  // Scale and hygiene
+  { id: 'secret-leak', label: 'Secrets in history', blurb: 'Deleting the file is not enough; the blob is still reachable.', module: 'scale', bigIdea: 'nothing-lost' },
+  { id: 'worktree', label: 'Worktrees', blurb: 'Several branches checked out at once, sharing one object database.', module: 'scale', bigIdea: 'three-trees' },
+  { id: 'maintenance', label: 'Maintenance and gc', blurb: 'Prune unreachable objects and keep the repository healthy.', module: 'scale', bigIdea: 'nothing-lost' },
+  { id: 'sparse-checkout', label: 'Sparse checkout', blurb: 'Materialise only the directories you need from a monorepo.', module: 'scale', bigIdea: 'three-trees' },
+  { id: 'partial-clone', label: 'Partial and shallow clones', blurb: 'Download some history now; fetch the rest on demand.', module: 'scale', bigIdea: 'distributed' },
+  { id: 'gitattributes', label: '.gitattributes and line endings', blurb: 'core.autocrlf and text=auto decide what a diff sees.', module: 'scale', bigIdea: 'three-trees' },
+
+  // Modern Git
+  { id: 'default-branch', label: 'The default branch', blurb: 'init.defaultBranch and HEAD decide main vs master.', module: 'modern', bigIdea: 'labels' },
+  { id: 'checkout-superseded', label: 'switch and restore', blurb: 'Two focused commands replacing checkout’s two jobs.', module: 'modern', bigIdea: 'three-trees' },
+  { id: 'git-3-0', label: 'Git 3.0 defaults', blurb: 'main, SHA-256 and the reftable backend become the norm.', module: 'modern', bigIdea: 'snapshot' },
+  { id: 'hooks', label: 'Hooks', blurb: 'Scripts Git runs at chosen moments — now configurable.', module: 'modern', bigIdea: 'snapshot' },
+  { id: 'signing', label: 'Signing commits', blurb: 'A signature proves who made a commit, not that it is good.', module: 'modern', bigIdea: 'snapshot' },
 ];
 
 export const CONCEPTS_BY_ID: Record<string, Concept> =
@@ -126,7 +155,11 @@ export const MODULE_TITLES: Record<ModuleId, string> = {
   undo: 'Undo, and why nothing is lost',
   branching: 'Branching and merging',
   toolkit: 'The working toolkit',
+  investigating: 'Investigating history',
   distributed: 'Distributed Git',
   github: 'The GitHub workflow',
+  teamwork: 'Collaborating on a team',
+  scale: 'Big repos and repo hygiene',
+  modern: 'Modern Git, and what is changing',
   synthesis: 'Putting it together',
 };

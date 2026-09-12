@@ -51,6 +51,25 @@ export const E = {
   emptyCommitMessage: () =>
     new GitError(['Aborting commit due to empty commit message.'], 1, [], 'empty-message'),
 
+  identityUnknown: () =>
+    new GitError(
+      [
+        'Author identity unknown',
+        '',
+        '*** Please tell me who you are.',
+        '',
+        'Run',
+        '',
+        '  git config --global user.email "you@example.com"',
+        '  git config --global user.name "Your Name"',
+        '',
+        'to set your account\'s default identity.',
+      ],
+      128,
+      [],
+      'identity-unknown',
+    ),
+
   unmergedFiles: () =>
     new GitError(
       [
@@ -153,6 +172,22 @@ export const E = {
         "hint: 'git pull' before pushing again.",
       ],
       'non-fast-forward',
+    ),
+
+  staleInfo: (branch: string, url: string) =>
+    new GitError(
+      [
+        `To ${url}`,
+        ` ! [rejected]        ${branch} -> ${branch} (stale info)`,
+        `error: failed to push some refs to '${url}'`,
+      ],
+      1,
+      [
+        'hint: Updates were rejected because the remote ref moved since your last',
+        'hint: fetch. --force-with-lease refused to overwrite a commit you have',
+        'hint: not seen — run `git fetch`, inspect the new work, then try again.',
+      ],
+      'stale-info',
     ),
 
   divergedNoStrategy: () =>

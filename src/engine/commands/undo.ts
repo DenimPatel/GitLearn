@@ -8,7 +8,8 @@ import { firstLine, readBlob, readCommit, short, writeObject } from '../objects'
 import { revParse } from '../revparse';
 import { flatTreeOfCommit, writeFlatTree, writeTreeFromIndex } from '../trees';
 import { indexFromFlat, indexFlat, indexRemove, indexSet } from '../gitIndex';
-import { hardResetTo, writeFile, deleteFile, worktreeFlat } from '../worktree';
+import { hardResetTo, writeFile, deleteFile, worktreeFlat, worktreePaths, ignored } from '../worktree';
+import { status } from '../status';
 import { revertCommit } from '../merge/apply';
 import { mergeTrees } from '../merge/mergeTrees';
 import { applyMergeResult, reportMerge } from './merging';
@@ -32,6 +33,15 @@ const restore: CommandSpec = {
     const sourceFlag = (args.flags.source as string[] | undefined)?.[0];
     const source = sourceFlag ? revParse(repo, sourceFlag) : headOid(repo);
     if (!args.positionals.length) throw E.pathspecNotMatch('');
+
+    // `restore` works from a committed or staged copy. An untracked file has no
+    // such copy, so git refuses rather than silently deleting your file.
+    const headTree = flatTreeOfCommit(repo, headOid(repo));
+    for (const path of args.positionals) {
+      if (indexFlat(repo.index)[path] === undefined && headTree[path] === undefined) {
+        throw E.pathspecNotMatch(path);
+      }
+    }
 
     for (const path of args.positionals) {
       if (staged) {
@@ -163,6 +173,50 @@ function finishRevert(
   (out.event as (e: unknown) => void)({ type: 'commit-created', oid, parents: head ? [head] : [] });
 }
 
+const clean: CommandSpec = {
+  name: 'clean', summary: 'Delete untracked files — the things restore cannot touch',
+  syntax: 'git clean -n  |  git clean -f  |  git clean -fd',
+  flags: [
+    { long: 'dry-run', short: 'n', arg: 'none' },
+    { long: 'force', short: 'f', arg: 'none' },
+    { long: 'directories', short: 'd', arg: 'none' },
+    { long: 'ignored', short: 'x', arg: 'none' },
+    { long: 'ignored-only', short: 'X', arg: 'none' },
+  ],
+  concepts: ['untracked', 'undo', 'gitignore'],
+  handler: ({ world, args, out }) => {
+    const repo = requireRepo(world);
+    const dryRun = args.flags['dry-run'] !== undefined;
+    if (!dryRun && args.flags.force === undefined) {
+      throw E.shell(
+        'fatal: clean.requireForce defaults to true and neither -i, -n, nor -f given; refusing to clean',
+      );
+    }
+
+    const tracked = indexFlat(repo.index);
+    const ignoredPaths = worktreePaths(repo)
+      .filter((p) => tracked[p] === undefined && ignored(repo, p));
+    const untracked = status(repo).untracked;
+    const includeIgnored = args.flags.ignored !== undefined;
+    const onlyIgnored = args.flags['ignored-only'] !== undefined;
+
+    let targets = onlyIgnored
+      ? ignoredPaths
+      : includeIgnored ? [...untracked, ...ignoredPaths] : untracked;
+
+    // Without -d, git leaves untracked directories (and everything inside them) alone.
+    if (args.flags.directories === undefined && !onlyIgnored && !includeIgnored) {
+      targets = targets.filter((p) => !p.includes('/'));
+    }
+    targets = [...new Set(targets)].sort();
+
+    for (const p of targets) {
+      out.line(`${dryRun ? 'Would remove' : 'Removing'} ${p}`);
+      if (!dryRun) deleteFile(repo, p);
+    }
+  },
+};
+
 const reflog: CommandSpec = {
   name: 'reflog', summary: 'Every place HEAD has been — the safety net',
   syntax: 'git reflog', flags: [{ long: 'all', arg: 'none' }],
@@ -262,4 +316,4 @@ const stash: CommandSpec = {
   },
 };
 
-register(restore, reset, revert, reflog, stash);
+register(restore, reset, revert, reflog, stash, clean);

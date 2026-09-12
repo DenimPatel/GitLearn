@@ -50,16 +50,17 @@ export function runRebase(repo: Repository, out: SequencerOut): void {
     }
 
     const original = readCommit(repo, step.oid);
-    if (step.action === 'squash' && op.done.length) {
-      // Fold into the previous commit rather than adding a new one.
+    if ((step.action === 'squash' || step.action === 'fixup') && op.done.length) {
+      // Fold into the previous commit rather than adding a new one. `fixup`
+      // throws the fixup's message away; `squash` keeps it in the body.
       const prev = readCommit(repo, headOid(repo)!);
       const tree = writeFlatTree(repo, result.merged);
       const oid = writeObject(repo, {
         type: 'commit', tree, parents: prev.parents,
         author: prev.author, committer: signature(repo),
-        message: `${prev.message}\n\n${original.message}`,
+        message: step.action === 'fixup' ? prev.message : `${prev.message}\n\n${original.message}`,
       });
-      updateRef(repo, HEAD, oid, `rebase (squash): ${firstLine(original.message)}`);
+      updateRef(repo, HEAD, oid, `rebase (${step.action}): ${firstLine(original.message)}`);
       op.done[op.done.length - 1] = oid;
     } else {
       const tree = writeFlatTree(repo, result.merged);

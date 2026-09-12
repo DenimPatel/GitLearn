@@ -91,7 +91,8 @@ describe('curriculum shape', () => {
 
   it('groups into modules in order', () => {
     expect(MODULES.map((m) => m.module)).toEqual([
-      'why', 'snapshots', 'undo', 'branching', 'toolkit', 'distributed', 'github', 'synthesis',
+      'why', 'snapshots', 'undo', 'branching', 'toolkit', 'investigating', 'distributed',
+      'github', 'teamwork', 'scale', 'modern', 'synthesis',
     ]);
   });
 });
