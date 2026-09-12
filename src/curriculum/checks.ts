@@ -5,6 +5,10 @@ import { indexFlat, unmergedPaths } from '../engine/gitIndex';
 import { status } from '../engine/status';
 import { flatTreeOfCommit } from '../engine/trees';
 import { walkHistory } from '../engine/refs';
+import { readCommit } from '../engine/objects';
+import { isAncestor } from '../engine/merge/mergeBase';
+import { commitRange } from '../engine/revparse';
+import { unreachableCommits } from '../engine/commands/investigate';
 import type { Check } from './types';
 
 /** Declarative validators, so a lesson author states what should be true rather
@@ -121,6 +125,95 @@ export const mergedFastForward = (): Check => (_w, ctx) =>
 
 export const mergedThreeWay = (): Check => (_w, ctx) =>
   ctx.history.some((h) => h.events.some((e) => e.type === 'merged' && e.strategy === 'three-way'));
+
+// --- Configuration and identity ---
+
+export const configEquals = (key: string, value: string): Check => (w) =>
+  w.local.config[key] === value;
+
+export const configSet = (key: string): Check => (w) => w.local.config[key] !== undefined;
+
+// --- Working tree and clean ---
+
+export const fileAbsent = (path: string): Check => (w) => w.local.worktree.files[path] === undefined;
+
+export const untrackedCount = (n: number): Check => (w) => status(w.local).untracked.length === n;
+
+export const noUntracked = (): Check => (w) => status(w.local).untracked.length === 0;
+
+// --- Commit contents ---
+
+export const headMessageMatches = (re: RegExp): Check => (w) => {
+  const head = headOid(w.local);
+  return head ? re.test(readCommit(w.local, head).message) : false;
+};
+
+export const headMessageHasBody = (): Check => (w) => {
+  const head = headOid(w.local);
+  if (!head) return false;
+  const lines = readCommit(w.local, head).message.split('\n');
+  return lines.length > 2 && lines[1].trim() === '' && lines.slice(2).join('').trim().length > 0;
+};
+
+export const authorOfHeadIs = (name: string): Check => (w) => {
+  const head = headOid(w.local);
+  return head ? readCommit(w.local, head).author.name === name : false;
+};
+
+export const noFixupCommits = (): Check => (w) => {
+  const head = headOid(w.local);
+  if (!head) return true;
+  return !walkHistory(w.local, [head]).some((oid) =>
+    /^(fixup|squash)!/.test(readCommit(w.local, oid).message));
+};
+
+/** True when history from `base` to HEAD is linear — no merge commits. */
+export const linearSince = (base: string): Check => (w) => {
+  const head = headOid(w.local);
+  const baseOid = resolveRefToOid(w.local, branchRef(base));
+  if (!head || !baseOid) return false;
+  return commitRange(w.local, baseOid, head).every((oid) => readCommit(w.local, oid).parents.length <= 1);
+};
+
+// --- Tags and remotes ---
+
+/** The tag exists and the commit it names is reachable from HEAD. */
+export const tagReachable = (tag: string): Check => (w) => {
+  const oid = resolveRefToOid(w.local, tagRef(tag));
+  if (!oid) return false;
+  const obj = w.local.objects[oid];
+  const commit = obj && obj.type === 'tag' ? obj.object : oid;
+  const head = headOid(w.local);
+  return !!head && isAncestor(w.local, commit, head);
+};
+
+export const remoteBranchMissing = (name: string): Check => (w) =>
+  !!w.origin && resolveRefToOid(w.origin, branchRef(name)) === null;
+
+export const remoteBranchAt = (branch: string, ref: string): Check => (w) => {
+  if (!w.origin) return false;
+  const at = resolveRefToOid(w.local, branchRef(ref)) ?? resolveRefToOid(w.local, tagRef(ref));
+  return at !== null && resolveRefToOid(w.origin, branchRef(branch)) === at;
+};
+
+export const forcePushed = (): Check => (_w, ctx) =>
+  ctx.history.some((h) => h.events.some((e) => e.type === 'pushed' && e.forced));
+
+export const prMergedSquash = (): Check => (w) =>
+  w.hosting.pullRequests.some((p) => p.status === 'merged' && p.mergeStrategy === 'squash');
+
+// --- Investigation ---
+
+export const bisectStarted = (): Check => (w) =>
+  w.local.bisect.origHead !== null && w.local.bisect.bad !== null;
+
+export const bisectFound = (oid?: string): Check => (w) => {
+  const b = w.local.bisect;
+  if (b.origHead === null || b.bad === null || b.remaining.length > 0) return false;
+  return oid ? b.bad === oid : true;
+};
+
+export const unreachableCount = (n: number): Check => (w) => unreachableCommits(w.local).length === n;
 
 export const all = (...checks: Check[]): Check => (w, c) => checks.every((f) => f(w, c));
 export const any = (...checks: Check[]): Check => (w, c) => checks.some((f) => f(w, c));

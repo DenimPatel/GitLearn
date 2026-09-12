@@ -8,3 +8,5 @@ import './rewrite';
 import './remotes';
 import './plumbing';
 import './hosting';
+import './config';
+import './investigate';

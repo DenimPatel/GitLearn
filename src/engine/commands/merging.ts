@@ -79,8 +79,12 @@ const merge: CommandSpec = {
 
     if (isAncestor(repo, theirs, ours)) { out.line('Already up to date.'); return; }
 
+    const squash = args.flags.squash !== undefined;
+
     // Fast-forward: our branch has no commits of its own, so the label just slides.
-    if (isAncestor(repo, ours, theirs) && args.flags['no-ff'] === undefined) {
+    // A squash merge never fast-forwards: its whole point is to stop short of a
+    // commit and leave the combined change staged. So the squash check comes first.
+    if (!squash && isAncestor(repo, ours, theirs) && args.flags['no-ff'] === undefined) {
       out.line(`Updating ${short(ours)}..${short(theirs)}`, 'Fast-forward');
       checkoutTree(repo, ours, theirs, { force: true });
       updateRef(repo, HEAD, theirs, `merge ${name}: Fast-forward`);
@@ -100,14 +104,24 @@ const merge: CommandSpec = {
     applyMergeResult(repo, result);
 
     if (reportMerge(result, out as never)) {
+      if (squash) {
+        // A conflicted squash leaves the unmerged index but records no merge in
+        // progress — there is no MERGE_HEAD to abort, exactly as in real git.
+        out.line('Automatic merge failed; fix conflicts and then commit the result.');
+        out.exit(1);
+        return;
+      }
       repo.operation = { kind: 'merge', theirs, theirsLabel: name, base, message };
       out.line('Automatic merge failed; fix conflicts and then commit the result.');
       out.exit(1);
       return;
     }
 
-    if (args.flags.squash !== undefined) {
-      out.line('Squash commit -- not updating HEAD');
+    if (squash) {
+      out.line(
+        'Squash commit -- not updating HEAD',
+        'Automatic merge went well; stopped before committing as requested',
+      );
       return;
     }
 

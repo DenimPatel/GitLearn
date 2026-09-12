@@ -24,6 +24,7 @@ export function emptyRepo(opts: { bare?: boolean; initialized?: boolean } = {}):
     remotes: {},
     upstream: {},
     clock: CLOCK_START,
+    bisect: { good: [], bad: null, remaining: [], current: null, origHead: null, origBranch: null },
   };
 }
 

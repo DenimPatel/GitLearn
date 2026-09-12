@@ -145,4 +145,57 @@ only do this to commits you have not shared.`,
       },
     ],
   },
+  {
+    id: 'fixup-and-autosquash',
+    module: 'toolkit',
+    title: 'Fixing an old commit without rewriting by hand',
+    idea: '`commit --fixup` marks a change for an earlier commit; `rebase --autosquash` moves it there.',
+    intro: `You are reviewing your branch before opening a pull request and you spot a
+typo in the second commit. The obvious fix — a new "fix typo" commit — is noise
+in the history and will be asked about in review.
+
+\`git commit --fixup <commit>\` makes a commit whose message is
+\`fixup! <subject of that commit>\`. Then, at rebase time,
+\`--autosquash\` reorders the todo list so the fixup sits directly after its
+target and folds in — discarding the fixup message and folding the change into
+the original commit.
+
+The result is as if the typo was never there.`,
+    scenario: 'fixup-history',
+    concepts: ['interactive-rebase', 'commit-message', 'rebase-rewrites-history'],
+    steps: [
+      {
+        id: 'patch',
+        goal: 'Patch app.js and stage the change.',
+        detail: 'This is the fix that really belongs in the "Add app.js" commit.',
+        suggested: ['echo "console.log(1) // patched" > app.js', 'git add app.js'],
+        hints: ['Edit app.js, then `git add app.js`.'],
+        check: c.staged('app.js'),
+      },
+      {
+        id: 'fixup',
+        goal: 'Record it as a fixup for the second commit.',
+        detail: 'HEAD~1 is "Add app.js". Note the message Git writes for you.',
+        suggested: ['git commit --fixup HEAD~1'],
+        hints: ['`git commit --fixup HEAD~1`.'],
+        check: c.headMessageMatches(/^fixup! Add app\.js/),
+      },
+      {
+        id: 'look',
+        goal: 'See the fixup commit sitting on the tip.',
+        suggested: ['git log --oneline -n 4'],
+        hints: ['`git log --oneline -n 4`.'],
+        check: c.ranCommand(/^git log --oneline -n 4/),
+      },
+      {
+        id: 'autosquash',
+        goal: 'Autosquash it into place.',
+        detail: '`HEAD~3` is the base the replay starts from. Afterwards there should be three commits and no `fixup!`.',
+        suggested: ['git rebase -i --autosquash HEAD~3'],
+        hints: ['`git rebase -i --autosquash HEAD~3`.'],
+        check: c.all(c.noFixupCommits(), c.commitCount(3), c.fileContains('app.js', 'patched')),
+      },
+    ],
+    outro: 'A clean branch is a kindness to your reviewer — and to whoever runs `git blame` later.',
+  },
 ];

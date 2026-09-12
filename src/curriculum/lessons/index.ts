@@ -5,9 +5,13 @@ import { SNAPSHOT_LESSONS } from './02-snapshots';
 import { UNDO_LESSONS } from './03-undo';
 import { BRANCHING_LESSONS } from './04-branching';
 import { TOOLKIT_LESSONS } from './05-toolkit';
+import { INVESTIGATING_LESSONS } from './09-investigating';
 import { DISTRIBUTED_LESSONS } from './06-distributed';
 import { GITHUB_LESSONS } from './07-github';
-import { SYNTHESIS_LESSONS } from './08-synthesis';
+import { TEAMWORK_LESSONS } from './10-teamwork';
+import { SCALE_LESSONS } from './11-scale';
+import { MODERN_LESSONS } from './12-modern';
+import { SYNTHESIS_LESSONS } from './13-synthesis';
 
 export const LESSONS: Lesson[] = [
   ...WHY_LESSONS,
@@ -15,8 +19,12 @@ export const LESSONS: Lesson[] = [
   ...UNDO_LESSONS,
   ...BRANCHING_LESSONS,
   ...TOOLKIT_LESSONS,
+  ...INVESTIGATING_LESSONS,
   ...DISTRIBUTED_LESSONS,
   ...GITHUB_LESSONS,
+  ...TEAMWORK_LESSONS,
+  ...SCALE_LESSONS,
+  ...MODERN_LESSONS,
   ...SYNTHESIS_LESSONS,
 ];
 

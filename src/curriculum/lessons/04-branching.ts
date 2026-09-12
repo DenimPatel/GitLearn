@@ -518,4 +518,54 @@ branch, rewrite freely. On shared main, use \`revert\`.`,
       },
     ],
   },
+  {
+    id: 'squash-merge',
+    module: 'branching',
+    title: 'Squashing a merge into one commit',
+    idea: '`merge --squash` stages the combined change but stops short of committing it.',
+    intro: `A normal merge creates a commit with two parents. A **squash** merge does
+not: it computes the same combined tree, puts it in your index and working tree,
+and then stops — telling you to commit it yourself.
+
+When you do, you get exactly one ordinary commit on main. The branch’s individual
+commits are not in main’s history at all. That is the trade: a tidy, linear main,
+at the cost of the branch’s granularity.
+
+Notice the squash is decided *before* the fast-forward check. Even a branch that
+*could* fast-forward is squashed into a stop-and-commit.`,
+    scenario: 'diverged-branches',
+    concepts: ['squash-merge', 'merge', 'three-trees'],
+    steps: [
+      {
+        id: 'count',
+        goal: 'Note how many commits main has before the merge.',
+        suggested: ['git log --oneline'],
+        hints: ['`git log --oneline`.'],
+        check: c.ranCommand(/^git log --oneline/),
+      },
+      {
+        id: 'squash',
+        goal: 'Squash feature into the index without committing.',
+        detail: 'HEAD must not move. Run `git status`: feature.txt is staged and ready.',
+        suggested: ['git merge --squash feature', 'git status'],
+        hints: ['`git merge --squash feature`'],
+        check: c.all(c.staged('feature.txt'), c.commitCount(2)),
+      },
+      {
+        id: 'commit',
+        goal: 'Commit the squashed change as a single commit.',
+        suggested: ['git commit -m "Add the feature"'],
+        hints: ['`git commit -m "Add the feature"`.'],
+        check: c.all(c.commitCount(3), c.fileInHead('feature.txt')),
+      },
+      {
+        id: 'shape',
+        goal: 'Confirm main has one new commit, not a merge.',
+        suggested: ['git log --oneline --graph'],
+        hints: ['`git log --oneline --graph` — there should be no fork.'],
+        check: c.ranCommand(/^git log --oneline --graph/),
+      },
+    ],
+    outro: 'Squash merging is how a messy branch becomes a single tidy commit on main.',
+  },
 ];

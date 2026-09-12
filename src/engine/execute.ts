@@ -42,11 +42,18 @@ export function execute(world: World, command: string): CommandResult {
     }
 
     const spec = lookup(namespace, name ?? '');
+    const rest = isGit ? argv.slice(2) : argv.slice(1);
+
     if (!spec) {
+      // A git alias is just a config key. Expanding it here keeps `git st`
+      // honest rather than a lie the tutorial only describes.
+      if (isGit && name) {
+        const alias = world.local.config[`alias.${name}`];
+        if (alias && alias !== name) return execute(world, ['git', alias, ...rest].join(' '));
+      }
       throw isGit ? E.unknownCommand(name!) : E.shell(`${name}: command not found`);
     }
 
-    const rest = isGit ? argv.slice(2) : argv.slice(1);
     const args = parseArgs(spec.name, rest, spec.flags, trimmed);
     if (redirect) args.flags['__redirect'] = [redirect.op, redirect.path];
 

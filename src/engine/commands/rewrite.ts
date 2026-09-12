@@ -24,6 +24,7 @@ const rebase: CommandSpec = {
     { long: 'abort', arg: 'none' },
     { long: 'skip', arg: 'none' },
     { long: 'interactive', short: 'i', arg: 'none' },
+    { long: 'autosquash', arg: 'none' },
     { long: 'onto', arg: 'required' },
   ],
   concepts: ['rebase', 'rebase-rewrites-history', 'linear-history', 'conflict-resolution'],
@@ -77,14 +78,18 @@ const rebase: CommandSpec = {
       out.line(`Successfully rebased and updated ${shortenRef(currentBranchRef(repo) ?? HEAD)}.`);
       return;
     }
-    if (isAncestor(repo, onto, head) && !ontoFlag) {
+    // An interactive or autosquash rebase rewrites the todo list even when the
+    // branch is already based on `onto`, so it must not short-circuit here.
+    const interactive = args.flags.interactive !== undefined || args.flags.autosquash !== undefined;
+    if (isAncestor(repo, onto, head) && !ontoFlag && !interactive) {
       out.line('Current branch is up to date.');
       return;
     }
 
     const base = mergeBase(repo, head, upstream);
     const picks = commitRange(repo, base, head).filter((c) => c !== onto);
-    const todo: RebaseStep[] = stepsFrom(repo, picks);
+    let todo: RebaseStep[] = stepsFrom(repo, picks);
+    if (args.flags.autosquash !== undefined) todo = autosquashSteps(todo);
 
     repo.operation = {
       kind: 'rebase', onto, origHead: head, origBranch: currentBranchRef(repo),
@@ -161,5 +166,33 @@ const cherryPick: CommandSpec = {
     repo.operation = { kind: 'none' };
   },
 };
+
+/**
+ * Git's autosquash: a commit whose subject is `fixup! <subject>` (or
+ * `squash! <subject>`) is moved to sit directly after the commit it names, and
+ * its action changes so the rebase folds it in. `fixup` discards the message;
+ * `squash` keeps it.
+ */
+export function autosquashSteps(steps: RebaseStep[]): RebaseStep[] {
+  const isFixup = (s: RebaseStep) => /^(fixup|squash)! /.test(s.label);
+  const fixups = steps.filter(isFixup);
+  if (!fixups.length) return steps;
+
+  const out: RebaseStep[] = [];
+  const used = new Set<RebaseStep>();
+  for (const base of steps.filter((s) => !isFixup(s))) {
+    out.push(base);
+    for (const f of fixups) {
+      const m = f.label.match(/^(fixup|squash)! (.+)$/);
+      if (m && m[2] === base.label) {
+        out.push({ ...f, action: m[1] === 'squash' ? 'squash' : 'fixup' });
+        used.add(f);
+      }
+    }
+  }
+  // A fixup whose target is not in the range is left where it was, as git does.
+  for (const f of fixups) if (!used.has(f)) out.push(f);
+  return out;
+}
 
 register(rebase, cherryPick);
