@@ -24,6 +24,6 @@ the encoding.
 
 ```bash
 pip install pillow numpy scipy imageio-ffmpeg   # imageio-ffmpeg bundles an ffmpeg binary
-python video/showreel.py                         # -> video/git_showreel.mp4 (1080p30, ~7 min on 4 cores)
+python video/showreel.py                         # -> video/git_showreel.mp4 (1080p30, ~4–5 min on 4 cores)
 python video/showreel.py --stills 5,20,36        # PNG stills for quick checks
 ```

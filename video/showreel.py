@@ -228,7 +228,7 @@ class Cv:
         if not txt or not _vis(fill):
             return
         if track == 0:
-            self.d.text((x * S, y * S), txt, font=font(f, size), fill=fill, anchor=anchor)
+            self._text(x * S, y * S, txt, font(f, size), fill, anchor)
             return
         total = self.tlen(txt, size, f, track)
         if anchor[0] == 'm':
@@ -237,8 +237,25 @@ class Cv:
             x -= total
         a = 'l' + anchor[1]
         for ch in txt:
-            self.d.text((x * S, y * S), ch, font=font(f, size), fill=fill, anchor=a)
+            self._text(x * S, y * S, ch, font(f, size), fill, a)
             x += self.tlen(ch, size, f) + track
+
+    def _text(self, x, y, txt, fnt, fill, anchor):
+        if not txt.strip():
+            return
+        # PIL ignores ink alpha for text on an RGB canvas, so translucent text
+        # is rendered into a mask and pasted with the alpha folded in.
+        if len(fill) < 4 or fill[3] >= 255:
+            self.d.text((x, y), txt, font=fnt, fill=fill[:3], anchor=anchor)
+            return
+        x0, y0, x1, y1 = self.d.textbbox((x, y), txt, font=fnt, anchor=anchor)
+        x0, y0 = int(math.floor(x0)), int(math.floor(y0))
+        w, h = int(math.ceil(x1)) - x0 + 1, int(math.ceil(y1)) - y0 + 1
+        if w <= 0 or h <= 0:
+            return
+        mask = Image.new('L', (w, h), 0)
+        ImageDraw.Draw(mask).text((x - x0, y - y0), txt, font=fnt, fill=fill[3], anchor=anchor)
+        self.img.paste(fill[:3], (x0, y0, x0 + w, y0 + h), mask)
 
 
 def node(c, x, y, r, col, a=1.0, core=True):
@@ -790,14 +807,16 @@ def scene_merge(c, t):
         w = 780 * s
         shake = math.sin(t * 70) * 6 * math.exp(-(t - 27.8) * 5)
         col = mix(RED, LIME, r)
-        base = [('<<<<<<< HEAD', RED, 1 - r), ('Kp = 0.8', ORANGE, 1 - r),
-                ('=======', RED, 1 - r), ('Kp = 1.2', CYAN, 1 - r),
-                ('>>>>>>> feature/slam', RED, 1 - r)]
+        fo = 1 - prog(t, 29.0, 29.3)       # old lines fade before the new one arrives
+        fi = prog(t, 29.35, 29.65)
+        base = [('<<<<<<< HEAD', RED, fo), ('Kp = 0.8', ORANGE, fo),
+                ('=======', RED, fo), ('Kp = 1.2', CYAN, fo),
+                ('>>>>>>> feature/slam', RED, fo)]
         lines = []
         for i, (txt, lc, la) in enumerate(base):
             ly0 = cy - 100 + i * 52 + 22
             lines.append((txt, lc, la, lerp(ly0, cy + 22, r)))
-        lines.append(('Kp = 1.0   # tuned on hardware', LIME, r, cy + 22))
+        lines.append(('Kp = 1.0   # tuned on hardware', LIME, fi, cy + 22))
         title = 'pid.py — CONFLICT' if r < .5 else 'pid.py — resolved ✓'
         code_card(c, 960 + shake, cy, w, h, title, lines, col, 1 if s > 0 else 0, 32)
         if t < 29.0:
@@ -1167,7 +1186,7 @@ def hud(c, t):
         branch = '(no branch, bisect)'
     c.text(100, 44, '◆', 18, rgba(ORANGE, a), 'sans', 'lm')
     c.text(126, 44, 'rover-nav', 18, rgba(WHITE, .8 * a), 'monob', 'lm')
-    c.text(236, 44, f'⎇ {branch}', 18, rgba(DIM, a), 'mono', 'lm')
+    c.text(236, 44, f'on {branch}', 18, rgba(DIM, a), 'mono', 'lm')
     c.text(1820, 44, 'GIT  /  SHOWREEL', 16, rgba(DIM, .8 * a), 'monob', 'rm', track=3)
     if (t * 1.2) % 1 < .6:
         c.circle(1600, 44, 5, fill=rgba(RED, a))
@@ -1564,7 +1583,7 @@ def main():
     cmd = [ffmpeg_exe(), '-y', '-loglevel', 'error',
            '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', f'{W}x{H}', '-r', str(FPS), '-i', '-',
            '-i', wav, '-map', '0:v', '-map', '1:a', *vf,
-           '-c:v', 'libx264', '-preset', 'slow', '-crf', '19', '-pix_fmt', 'yuv420p',
+           '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-maxrate', '7M', '-bufsize', '14M', '-pix_fmt', 'yuv420p',
            '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-shortest', args.out]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     frames = range(NFRAMES)
