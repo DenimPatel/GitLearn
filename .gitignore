@@ -25,3 +25,5 @@ dist-ssr
 
 # vitest
 coverage/
+video/*.wav
+video/stills/
