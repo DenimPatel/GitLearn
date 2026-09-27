@@ -27,3 +27,4 @@ dist-ssr
 coverage/
 video/*.wav
 video/stills/
+__pycache__/
